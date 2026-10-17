@@ -1,0 +1,956 @@
+<div class="frame" [attr.data-alert]="cli.alertMode()" [attr.data-theme]="currentTheme()">
+  <!-- Top Horizontal LCARS Bar -->
+  <header class="bar topbar">
+    <div class="seg c-orange elbow-anchor" (click)="selectSubsystem('desktop')" title="LCARS Windows Desktop Shell">
+      <span class="num">NCC-75633</span>
+    </div>
+    <div class="seg c-peach"><span class="num">02-2617</span></div>
+    <div class="seg c-lavender"><span class="num">11-4501</span></div>
+    <div class="seg c-blue"><span class="num">4431-0</span></div>
+
+    <!-- Machine & Host Identification -->
+    <div class="seg c-sky grow title-seg">
+      <span class="num starship-id">USS DEFIANT // {{ cli.telemetry().hostname }}</span>
+    </div>
+
+    <!-- SVG Honeycomb Status Matrix -->
+    <div class="seg c-gold honeycomb-seg" title="Sensor Array Nominal">
+      <svg class="honeycomb-svg" viewBox="0 0 70 20" width="70" height="20">
+        <polygon points="10,2 18,2 22,10 18,18 10,18 6,10" fill="var(--c-peach)" opacity="0.9"/>
+        <polygon points="24,2 32,2 36,10 32,18 24,18 20,10" fill="var(--c-gold)" opacity="0.95"/>
+        <polygon points="38,2 46,2 50,10 46,18 38,18 34,10" fill="var(--c-teal)" opacity="0.85"/>
+        <polygon points="52,2 60,2 64,10 60,18 52,18 48,10" fill="var(--c-lavender)" opacity="0.9"/>
+      </svg>
+    </div>
+
+    <!-- Stardate & 12-Hour Chronometer -->
+    <div class="seg c-peach readout-seg">
+      <span class="num">SD {{ stardate() }}</span>
+    </div>
+    <div class="seg c-gold readout-seg">
+      <span class="num clock-text">{{ clock() }}</span>
+    </div>
+
+    <!-- Alert Condition Pill (Interactive) -->
+    <button
+      type="button"
+      class="seg alert-toggle-seg"
+      [ngClass]="cli.alertMode() === 'red' ? 'c-red alert-pulse' : cli.alertMode() === 'yellow' ? 'c-gold' : 'c-teal'"
+      (click)="cycleAlert()"
+      title="Cycle Alert Condition (Green / Yellow / Red)"
+    >
+      <span class="num">{{ cli.alertMode() === 'red' ? 'RED ALERT' : cli.alertMode() === 'yellow' ? 'YELLOW ALERT' : 'COND GREEN' }}</span>
+    </button>
+
+    <!-- Window Management Controls -->
+    <button type="button" class="seg c-sky btn-seg" (click)="toggleFullscreen()" title="Toggle Fullscreen">
+      <span class="num">FULL</span>
+    </button>
+    <button type="button" class="seg c-lavender btn-seg" (click)="minimizeWindow()" title="Minimize to Taskbar">
+      <span class="num">MIN</span>
+    </button>
+    <button type="button" class="seg c-gold btn-seg" (click)="maximizeWindow()" title="Maximize / Restore">
+      <span class="num">MAX</span>
+    </button>
+    <button type="button" class="seg c-red btn-seg" (click)="closeWindow()" title="Exit Shell">
+      <span class="num">EXIT</span>
+    </button>
+  </header>
+
+  <!-- Left LCARS Rail Navigation -->
+  <aside class="rail">
+    <!-- Top Sweeping Elbow Cap -->
+    <div class="block c-orange elbow" (click)="selectSubsystem('desktop')">
+      <span class="label">LCARS 47</span>
+    </div>
+
+    <!-- Primary Subsystem Navigation Pillars -->
+    <button
+      type="button"
+      class="block c-gold nav-btn"
+      [class.active-subsystem]="activeSubsystem() === 'desktop'"
+      (click)="selectSubsystem('desktop')"
+    >
+      <span class="tag">01</span><span class="label">FILES & DESKTOP</span>
+    </button>
+
+    <button
+      type="button"
+      class="block c-peach nav-btn"
+      [class.active-subsystem]="activeSubsystem() === 'apps'"
+      (click)="selectSubsystem('apps')"
+    >
+      <span class="tag">02</span><span class="label">ALL APPLICATIONS ({{ cli.installedApps().length }})</span>
+    </button>
+
+    <button
+      type="button"
+      class="block c-lavender nav-btn"
+      [class.active-subsystem]="activeSubsystem() === 'performance'"
+      (click)="selectSubsystem('performance')"
+    >
+      <span class="tag">03</span><span class="label">SYSTEM SENSORS</span>
+    </button>
+
+    <button
+      type="button"
+      class="block c-teal nav-btn"
+      [class.active-subsystem]="activeSubsystem() === 'utilities'"
+      (click)="selectSubsystem('utilities')"
+    >
+      <span class="tag">04</span><span class="label">WINDOWS TOOLS</span>
+    </button>
+
+    <button
+      type="button"
+      class="block c-blue nav-btn"
+      [class.active-subsystem]="activeSubsystem() === 'shell-config'"
+      (click)="selectSubsystem('shell-config')"
+    >
+      <span class="tag">05</span><span class="label">SHELL CONFIG</span>
+    </button>
+
+    <button
+      type="button"
+      class="block c-sky nav-btn"
+      [class.active-subsystem]="activeSubsystem() === 'activity-log'"
+      (click)="selectSubsystem('activity-log')"
+    >
+      <span class="tag">06</span><span class="label">ACTIVITY LOG</span>
+    </button>
+
+    <!-- Rail Divider & Quick Locations Header -->
+    <div class="rail-subhead">
+      <span>QUICK DIRECTORIES</span>
+    </div>
+
+    <!-- Quick Location Shortcuts -->
+    @for (loc of cli.quickLocations(); track loc.id) {
+      <button
+        type="button"
+        class="block c-teal quick-loc-btn"
+        (click)="navigateToQuickLocation(loc)"
+        [title]="loc.path || loc.name"
+      >
+        <span class="label">{{ loc.name }}</span>
+      </button>
+    }
+
+    <div class="rail-gap"></div>
+
+    <!-- Alert / System Status Pill -->
+    <div
+      class="block joint-bottom alert-pill"
+      [ngClass]="cli.alertMode() === 'red' ? 'c-red alert-pulse' : cli.alertMode() === 'yellow' ? 'c-gold' : 'c-teal'"
+      (click)="cycleAlert()"
+      title="Click to cycle System Alert status"
+    >
+      <span class="tag">STATUS</span>
+      <span class="label">{{ cli.alertMode() === 'red' ? 'RED ALERT' : cli.alertMode() === 'yellow' ? 'YELLOW ALERT' : 'CONDITION GREEN' }}</span>
+    </div>
+  </aside>
+
+  <!-- Central LCARS Stage -->
+  <main class="stage">
+    <!-- Header Hairline Accent Bars & Subsystem Title -->
+    <section class="title">
+      <div class="hairlines">
+        <span class="hl c-orange w1"></span>
+        <span class="hl c-peach w2"></span>
+        <span class="hl c-lavender w3"></span>
+        <span class="hl c-blue w2"></span>
+        <span class="hl c-sky w4"></span>
+        <span class="hl c-gold w1"></span>
+        <span class="hl c-teal w5"></span>
+      </div>
+      <div class="title-row">
+        <h1>
+          @switch (activeSubsystem()) {
+            @case ('desktop') { FILE EXPLORER & DESKTOP }
+            @case ('apps') { ALL WINDOWS APPLICATIONS }
+            @case ('performance') { SENSORS & SYSTEM METRICS }
+            @case ('utilities') { WINDOWS SYSTEM TOOLS }
+            @case ('shell-config') { SHELL CONFIGURATION }
+            @case ('activity-log') { AUDIT & EVENT LOG }
+          }
+        </h1>
+        <span class="subsystem-badge c-peach">
+          {{ cli.telemetry().hostname }} // {{ cli.telemetry().username }}
+        </span>
+      </div>
+    </section>
+
+    <!-- Notification Toast Banner -->
+    @if (copiedNotification(); as note) {
+      <div class="notice-toast c-gold">
+        <span class="tag">SYSTEM</span>
+        <span class="body">{{ note }}</span>
+      </div>
+    }
+
+    <!-- ==================== 1. DESKTOP & FILE EXPLORER ==================== -->
+    @if (activeSubsystem() === 'desktop') {
+      <div class="subsystem-view">
+        <section class="panel">
+          <div class="panel-head c-gold">
+            <span class="head-num">DIR-0047</span>
+            <span>DIRECTORY: {{ cli.currentDirectory() || 'USER DESKTOP' }}</span>
+          </div>
+
+          <!-- Breadcrumbs Bar -->
+          <div class="breadcrumbs-bar">
+            <div class="crumb-label tk-gold">PATH:</div>
+            <div class="crumbs-list">
+              @for (crumb of breadcrumbs(); track crumb.path; let last = $last) {
+                <button
+                  type="button"
+                  class="crumb-btn block"
+                  [class.c-gold]="last"
+                  [class.c-sky]="!last"
+                  (click)="navigateToPath(crumb.path)"
+                >
+                  {{ crumb.label }}
+                </button>
+                @if (!last) {
+                  <span class="crumb-separator">&gt;</span>
+                }
+              }
+            </div>
+            <div class="crumb-actions">
+              <button
+                type="button"
+                class="block c-peach mini-btn"
+                [disabled]="pathHistory().length === 0"
+                (click)="navigateBack()"
+                title="Back to previous directory"
+              >
+                &lt; BACK
+              </button>
+              <button
+                type="button"
+                class="block c-gold mini-btn"
+                [disabled]="!cli.currentDirectory()"
+                (click)="navigateUp()"
+                title="Go up to parent folder"
+              >
+                ^ UP
+              </button>
+              <button
+                type="button"
+                class="block c-teal mini-btn"
+                (click)="refreshCurrentDirectory()"
+                title="Refresh current folder (F5)"
+              >
+                REFRESH
+              </button>
+              <button
+                type="button"
+                class="block c-sky mini-btn"
+                (click)="openCurrentFolderInExplorer()"
+                title="Open current directory in native Windows File Explorer"
+              >
+                EXPLORER
+              </button>
+            </div>
+          </div>
+
+          <!-- Direct Path Bar & Controls -->
+          <div class="directory-toolbar">
+            <div class="path-bar-wrapper">
+              <span class="path-label tk-sky">DIRECT PATH:</span>
+              <input
+                type="text"
+                class="lcars-input path-input"
+                [(ngModel)]="customDirPath"
+                (keyup.enter)="onCustomPathSubmit()"
+                placeholder="Enter folder path (e.g. C:\Users\... or C:\) and press Enter"
+              />
+              <button type="button" class="block c-orange mini-btn" (click)="onCustomPathSubmit()">
+                GO
+              </button>
+            </div>
+
+            <!-- View Mode & Sort Controls -->
+            <div class="view-and-sort-controls">
+              <div class="view-mode-toggle">
+                <button
+                  type="button"
+                  class="block view-btn"
+                  [class.active-view]="viewMode() === 'grid'"
+                  (click)="viewMode.set('grid')"
+                >
+                  GRID
+                </button>
+                <button
+                  type="button"
+                  class="block view-btn"
+                  [class.active-view]="viewMode() === 'table'"
+                  (click)="viewMode.set('table')"
+                >
+                  TABLE
+                </button>
+              </div>
+
+              <div class="sort-selector">
+                <span class="sort-label tk-lavender">SORT:</span>
+                <select class="lcars-select" [ngModel]="fileSort()" (ngModelChange)="fileSort.set($event)">
+                  <option value="name-asc">NAME (A-Z)</option>
+                  <option value="name-desc">NAME (Z-A)</option>
+                  <option value="size-desc">SIZE (LARGEST FIRST)</option>
+                  <option value="size-asc">SIZE (SMALLEST FIRST)</option>
+                  <option value="date-desc">DATE (NEWEST FIRST)</option>
+                  <option value="date-asc">DATE (OLDEST FIRST)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search Filter Toolbar -->
+          <div class="desktop-toolbar">
+            <div class="desktop-search-box">
+              <span class="search-label tk-gold">FILTER DIRECTORY:</span>
+              <input
+                type="text"
+                class="lcars-input desktop-search-input"
+                [(ngModel)]="desktopSearch"
+                placeholder="Type to filter files by name..."
+              />
+              @if (desktopSearch) {
+                <button type="button" class="block c-pink mini-btn" (click)="desktopSearch = ''">
+                  CLEAR
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Item Type Filter Tabs with Live Counts -->
+          <div class="desktop-filter-bar">
+            <button
+              type="button"
+              class="block desk-filter"
+              [class.active-desk-filter]="desktopFilter() === 'ALL'"
+              (click)="desktopFilter.set('ALL')"
+            >
+              ALL ({{ categoryCounts().all }})
+            </button>
+            <button
+              type="button"
+              class="block desk-filter c-gold"
+              [class.active-desk-filter]="desktopFilter() === 'folder'"
+              (click)="desktopFilter.set('folder')"
+            >
+              FOLDERS ({{ categoryCounts().folder }})
+            </button>
+            <button
+              type="button"
+              class="block desk-filter c-sky"
+              [class.active-desk-filter]="desktopFilter() === 'shortcut'"
+              (click)="desktopFilter.set('shortcut')"
+            >
+              SHORTCUTS & APPS ({{ categoryCounts().shortcut }})
+            </button>
+            <button
+              type="button"
+              class="block desk-filter c-lavender"
+              [class.active-desk-filter]="desktopFilter() === 'document'"
+              (click)="desktopFilter.set('document')"
+            >
+              DOCUMENTS ({{ categoryCounts().document }})
+            </button>
+            <button
+              type="button"
+              class="block desk-filter c-teal"
+              [class.active-desk-filter]="desktopFilter() === 'image'"
+              (click)="desktopFilter.set('image')"
+            >
+              MEDIA ({{ categoryCounts().image }})
+            </button>
+            <button
+              type="button"
+              class="block desk-filter c-orange"
+              [class.active-desk-filter]="desktopFilter() === 'script'"
+              (click)="desktopFilter.set('script')"
+            >
+              SCRIPTS ({{ categoryCounts().script }})
+            </button>
+            <button
+              type="button"
+              class="block desk-filter c-peach"
+              [class.active-desk-filter]="desktopFilter() === 'executable'"
+              (click)="desktopFilter.set('executable')"
+            >
+              BINARIES ({{ categoryCounts().executable }})
+            </button>
+          </div>
+
+          <!-- Main Filesystem View (Grid or Table) -->
+          @if (viewMode() === 'grid') {
+            <!-- GRID CARD VIEW -->
+            <div class="desktop-grid">
+              @for (item of filteredItems(); track item.path) {
+                <div
+                  class="desktop-item-card block"
+                  [ngClass]="getItemBadgeColor(item)"
+                  [class.selected-card]="selectedItem()?.path === item.path"
+                  (click)="openItem(item)"
+                  [title]="item.path"
+                >
+                  <div class="item-header">
+                    <span class="item-code">{{ getItemCode(item) }}</span>
+                    <span class="item-size">{{ formatFileSize(item) }}</span>
+                  </div>
+                  <div class="item-title">{{ item.name }}</div>
+                  <div class="item-path">{{ item.filename }}</div>
+                  <div class="item-actions-hover">
+                    <button
+                      type="button"
+                      class="mini-card-act act-open"
+                      (click)="$event.stopPropagation(); openItem(item)"
+                    >
+                      {{ item.item_type === 'folder' ? 'ENTER' : 'OPEN' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="mini-card-act"
+                      (click)="$event.stopPropagation(); cli.revealItem(item.path)"
+                    >
+                      EXPLORER
+                    </button>
+                    <button
+                      type="button"
+                      class="mini-card-act"
+                      (click)="$event.stopPropagation(); copyItemPath(item)"
+                    >
+                      COPY
+                    </button>
+                  </div>
+                </div>
+              } @empty {
+                <div class="empty-desktop-msg">
+                  NO DIRECTORY ITEMS MATCH CRITERIA
+                </div>
+              }
+            </div>
+          } @else {
+            <!-- TABLE LIST VIEW -->
+            <div class="table-container">
+              <table class="lcars-table">
+                <thead>
+                  <tr>
+                    <th>CODE</th>
+                    <th>NAME</th>
+                    <th>TYPE</th>
+                    <th>EXTENSION</th>
+                    <th>SIZE</th>
+                    <th>MODIFIED</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of filteredItems(); track item.path) {
+                    <tr
+                      [class.selected-row]="selectedItem()?.path === item.path"
+                      (click)="selectItem(item)"
+                      (dblclick)="openItem(item)"
+                    >
+                      <td class="td-code"><span class="badge" [ngClass]="getItemBadgeColor(item)">{{ getItemCode(item) }}</span></td>
+                      <td class="td-name">{{ item.name }}</td>
+                      <td class="td-type">{{ item.item_type | uppercase }}</td>
+                      <td class="td-ext">{{ item.extension ? ('.' + item.extension) : '-' }}</td>
+                      <td class="td-size">{{ formatFileSize(item) }}</td>
+                      <td class="td-date">{{ formatDate(item.modified_epoch) }}</td>
+                      <td class="td-actions">
+                        <button type="button" class="table-act-btn c-sky" (click)="$event.stopPropagation(); openItem(item)">
+                          {{ item.item_type === 'folder' ? 'ENTER' : 'OPEN' }}
+                        </button>
+                        <button type="button" class="table-act-btn c-gold" (click)="$event.stopPropagation(); cli.revealItem(item.path)">
+                          EXPLORER
+                        </button>
+                        <button type="button" class="table-act-btn c-teal" (click)="$event.stopPropagation(); copyItemPath(item)">
+                          COPY
+                        </button>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="7" class="empty-table-msg">NO ITEMS IN CURRENT DIRECTORY</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+
+        <!-- Selected Item Details Drawer & Actions -->
+        @if (selectedItem(); as sel) {
+          <section class="panel item-details-panel">
+            <div class="panel-head c-peach">
+              <span class="head-num">SEL-47</span>
+              <span>ITEM DETAILS // {{ sel.name }}</span>
+            </div>
+            <div class="item-details-body">
+              <div class="details-meta-grid">
+                <div class="meta-row"><span class="meta-k">NAME:</span> <span class="meta-v">{{ sel.name }}</span></div>
+                <div class="meta-row"><span class="meta-k">FILE NAME:</span> <span class="meta-v">{{ sel.filename }}</span></div>
+                <div class="meta-row"><span class="meta-k">TYPE:</span> <span class="meta-v">{{ sel.item_type | uppercase }} ({{ sel.extension || 'N/A' }})</span></div>
+                <div class="meta-row"><span class="meta-k">SIZE:</span> <span class="meta-v">{{ formatFileSize(sel) }}</span></div>
+                <div class="meta-row"><span class="meta-k">MODIFIED:</span> <span class="meta-v">{{ formatDate(sel.modified_epoch) }}</span></div>
+                <div class="meta-row full"><span class="meta-k">FULL PATH:</span> <span class="meta-v path-text">{{ sel.path }}</span></div>
+              </div>
+              <div class="details-actions">
+                <button type="button" class="block c-orange action-btn" (click)="openSelectedItem()">
+                  {{ sel.item_type === 'folder' ? 'NAVIGATE INTO FOLDER' : 'OPEN / RUN ITEM' }}
+                </button>
+                <button type="button" class="block c-gold action-btn" (click)="revealSelectedItem()">
+                  REVEAL IN WINDOWS EXPLORER
+                </button>
+                <button type="button" class="block c-teal action-btn" (click)="copyItemPath(sel)">
+                  COPY FULL PATH
+                </button>
+                <button type="button" class="block c-pink action-btn" (click)="selectedItem.set(null)">
+                  CLOSE DETAILS
+                </button>
+              </div>
+            </div>
+          </section>
+        }
+      </div>
+    }
+
+    <!-- ==================== 2. ALL APPLICATIONS ==================== -->
+    @if (activeSubsystem() === 'apps') {
+      <div class="subsystem-view">
+        <section class="panel">
+          <div class="panel-head c-peach">
+            <span class="head-num">APP-CATALOG</span>
+            <span>INSTALLED WINDOWS APPLICATIONS // {{ filteredInstalledApps().length }} OF {{ cli.installedApps().length }}</span>
+          </div>
+
+          <!-- Apps Search Toolbar -->
+          <div class="desktop-toolbar">
+            <div class="desktop-search-box">
+              <span class="search-label tk-gold">SEARCH APPLICATIONS:</span>
+              <input
+                type="text"
+                class="lcars-input desktop-search-input"
+                [(ngModel)]="appSearch"
+                placeholder="Search by name, category, or code..."
+              />
+              @if (appSearch) {
+                <button type="button" class="block c-pink mini-btn" (click)="appSearch = ''">
+                  CLEAR
+                </button>
+              }
+            </div>
+            <button
+              type="button"
+              class="block c-teal mini-btn"
+              (click)="cli.fetchInstalledApps()"
+              title="Rescan Windows Start Menu & Desktop"
+            >
+              RESCAN APPS
+            </button>
+          </div>
+
+          <!-- Category Filter Pills -->
+          <div class="desktop-filter-bar">
+            @for (cat of installedAppCategories(); track cat) {
+              <button
+                type="button"
+                class="block desk-filter"
+                [class.active-desk-filter]="appCategoryFilter() === cat"
+                (click)="appCategoryFilter.set(cat)"
+              >
+                {{ cat }}
+              </button>
+            }
+          </div>
+
+          <!-- Applications Grid -->
+          <div class="apps-catalog-grid">
+            @for (app of filteredInstalledApps(); track app.id) {
+              <div class="app-catalog-card block" [ngClass]="app.color" (click)="launchInstalledApp(app)">
+                <div class="app-card-top">
+                  <span class="app-code">{{ app.code }}</span>
+                  <span class="app-category-badge">{{ app.category }}</span>
+                </div>
+                <div class="app-name">{{ app.name }}</div>
+                <div class="app-actions">
+                  <button
+                    type="button"
+                    class="block mini-card-act act-open"
+                    (click)="$event.stopPropagation(); launchInstalledApp(app)"
+                  >
+                    LAUNCH
+                  </button>
+                </div>
+              </div>
+            } @empty {
+              <div class="empty-desktop-msg">
+                NO APPLICATIONS MATCH SEARCH CRITERIA
+              </div>
+            }
+          </div>
+        </section>
+      </div>
+    }
+
+    <!-- ==================== 3. SENSORS & SYSTEM METRICS ==================== -->
+    @if (activeSubsystem() === 'performance') {
+      <div class="subsystem-view">
+        <section class="panel">
+          <div class="panel-head c-lavender">
+            <span class="head-num">TEL-0290</span>
+            <span>SYSTEM SENSORS & REAL-TIME HARDWARE TELEMETRY</span>
+          </div>
+
+          <div class="sensors-layout-grid">
+            <!-- Left: Canonical LCARS Circular Tactical Dial (from Images 2 & 5) -->
+            <div class="sensor-dial-box">
+              <div class="dial-title tk-gold">TACTICAL SENSOR ARRAY</div>
+              <svg class="lcars-tactical-gauge" viewBox="0 0 320 320" width="300" height="300">
+                <!-- Outer Ring Segments -->
+                <circle cx="160" cy="160" r="145" fill="none" stroke="var(--c-orange)" stroke-width="6" stroke-dasharray="70 8 40 8 120 12" />
+                <circle cx="160" cy="160" r="132" fill="none" stroke="var(--c-lavender)" stroke-width="2" stroke-dasharray="10 4" opacity="0.6"/>
+                
+                <!-- Mid Rings & Radial Sectors -->
+                <circle cx="160" cy="160" r="105" fill="none" stroke="var(--c-gold)" stroke-width="14" stroke-dasharray="140 18 80 18" opacity="0.85"/>
+                <circle cx="160" cy="160" r="85" fill="none" stroke="var(--c-teal)" stroke-width="4" stroke-dasharray="60 12" />
+                
+                <!-- Crosshairs -->
+                <line x1="160" y1="20" x2="160" y2="300" stroke="var(--c-peach)" stroke-width="2" opacity="0.7"/>
+                <line x1="20" y1="160" x2="300" y2="160" stroke="var(--c-peach)" stroke-width="2" opacity="0.7"/>
+                <circle cx="160" cy="160" r="60" fill="none" stroke="var(--c-sky)" stroke-width="2"/>
+
+                <!-- Central Readout Core -->
+                <circle cx="160" cy="160" r="50" fill="#000000" stroke="var(--c-orange)" stroke-width="3"/>
+                <text x="160" y="152" text-anchor="middle" fill="var(--c-gold)" font-size="24" font-weight="bold" font-family="'Antonio', 'LCARS', sans-serif">
+                  {{ cli.telemetry().memory_load_percent }}%
+                </text>
+                <text x="160" y="172" text-anchor="middle" fill="var(--c-sky)" font-size="11" font-weight="bold" font-family="'Antonio', 'LCARS', sans-serif">
+                  LOAD LEVEL
+                </text>
+
+                <!-- Tactical Sector Labels (Image 2 canonical style) -->
+                <text x="160" y="38" text-anchor="middle" fill="var(--c-peach)" font-size="11" font-family="'Antonio', 'LCARS', sans-serif">000</text>
+                <text x="285" y="164" text-anchor="middle" fill="var(--c-peach)" font-size="11" font-family="'Antonio', 'LCARS', sans-serif">090</text>
+                <text x="160" y="292" text-anchor="middle" fill="var(--c-peach)" font-size="11" font-family="'Antonio', 'LCARS', sans-serif">180</text>
+                <text x="35" y="164" text-anchor="middle" fill="var(--c-peach)" font-size="11" font-family="'Antonio', 'LCARS', sans-serif">270</text>
+              </svg>
+              <div class="dial-caption tk-sky">
+                WARP CORE SENSOR FLUX // MEMORY LOAD: {{ cli.telemetry().memory_load_percent }}%
+              </div>
+            </div>
+
+            <!-- Right: Segmented Bar Graph Equalizer Level Racks (Images 1 & 3) -->
+            <div class="sensor-bars-box">
+              <div class="dial-title tk-gold">LEVEL RACK METERS</div>
+              <div class="level-racks-container">
+                <!-- Column 1: Memory Load -->
+                <div class="rack-col">
+                  <div class="rack-segments">
+                    @for (seg of memoryMeterSegments(); track seg.index) {
+                      <div class="rack-cell" [class.active-cell]="seg.active" [style.background-color]="seg.active ? 'var(--c-gold)' : 'rgba(255, 153, 0, 0.12)'"></div>
+                    }
+                  </div>
+                  <div class="rack-label tk-gold">RAM {{ cli.telemetry().memory_load_percent }}%</div>
+                </div>
+
+                <!-- Column 2: Available Memory -->
+                <div class="rack-col">
+                  <div class="rack-segments">
+                    @for (seg of memoryMeterSegments(); track seg.index) {
+                      <div class="rack-cell" [class.active-cell]="seg.index < 14" [style.background-color]="seg.index < 14 ? 'var(--c-teal)' : 'rgba(0, 153, 204, 0.12)'"></div>
+                    }
+                  </div>
+                  <div class="rack-label tk-teal">AVAIL</div>
+                </div>
+
+                <!-- Column 3: CPU Allocation -->
+                <div class="rack-col">
+                  <div class="rack-segments">
+                    @for (seg of memoryMeterSegments(); track seg.index) {
+                      <div class="rack-cell" [class.active-cell]="seg.index < 10" [style.background-color]="seg.index < 10 ? 'var(--c-lavender)' : 'rgba(204, 153, 204, 0.12)'"></div>
+                    }
+                  </div>
+                  <div class="rack-label tk-lavender">CORES: {{ cli.telemetry().cpu_cores }}</div>
+                </div>
+
+                <!-- Column 4: System Stability -->
+                <div class="rack-col">
+                  <div class="rack-segments">
+                    @for (seg of memoryMeterSegments(); track seg.index) {
+                      <div class="rack-cell active-cell" [style.background-color]="'var(--c-peach)'"></div>
+                    }
+                  </div>
+                  <div class="rack-label tk-peach">NOMINAL</div>
+                </div>
+              </div>
+
+              <!-- Telemetry Data Grid -->
+              <div class="telemetry-specs-grid">
+                <div class="spec-card c-gold">
+                  <span class="spec-k">HOST:</span> <span class="spec-v">{{ cli.telemetry().hostname }}</span>
+                </div>
+                <div class="spec-card c-sky">
+                  <span class="spec-k">USER:</span> <span class="spec-v">{{ cli.telemetry().username }}</span>
+                </div>
+                <div class="spec-card c-peach">
+                  <span class="spec-k">CPU:</span> <span class="spec-v">{{ cli.telemetry().cpu_cores }} LOGICAL CORES ({{ cli.telemetry().arch }})</span>
+                </div>
+                <div class="spec-card c-teal">
+                  <span class="spec-k">RAM:</span> <span class="spec-v">{{ formatMemory(cli.telemetry().available_memory_mb) }} FREE / {{ formatMemory(cli.telemetry().total_memory_mb) }}</span>
+                </div>
+                <div class="spec-card c-lavender">
+                  <span class="spec-k">UPTIME:</span> <span class="spec-v">{{ formatUptime(cli.telemetry().uptime_seconds) }}</span>
+                </div>
+                <div class="spec-card c-orange">
+                  <span class="spec-k">OS:</span> <span class="spec-v">{{ cli.telemetry().os }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    }
+
+    <!-- ==================== 4. WINDOWS TOOLS ==================== -->
+    @if (activeSubsystem() === 'utilities') {
+      <div class="subsystem-view">
+        <section class="panel">
+          <div class="panel-head c-teal">
+            <span class="head-num">SYS-TOOLS</span>
+            <span>WINDOWS ADMINISTRATIVE & DIAGNOSTIC UTILITIES</span>
+          </div>
+
+          <div class="tools-matrix-grid">
+            @for (tool of windowsTools; track tool.id) {
+              <div class="tool-card block" [ngClass]="tool.color" (click)="launchPreset(tool)">
+                <div class="tool-top">
+                  <span class="tool-code">{{ tool.code }}</span>
+                  <span class="tool-category">{{ tool.category }}</span>
+                </div>
+                <div class="tool-name">{{ tool.name }}</div>
+                <div class="tool-desc">{{ tool.description }}</div>
+                <button type="button" class="mini-card-act act-open" (click)="$event.stopPropagation(); launchPreset(tool)">
+                  OPEN
+                </button>
+              </div>
+            }
+          </div>
+
+          <!-- Custom Command Runner -->
+          <div class="custom-runner-box">
+            <div class="runner-head tk-gold">DIRECT PROCESS EXECUTION</div>
+            <div class="runner-row">
+              <input
+                type="text"
+                class="lcars-input"
+                [(ngModel)]="launchPath"
+                placeholder="Executable path or command (e.g. powershell.exe, cmd.exe, regedit.exe)..."
+              />
+              <input
+                type="text"
+                class="lcars-input"
+                [(ngModel)]="launchArgs"
+                placeholder="Arguments (optional)..."
+              />
+              <button type="button" class="block c-orange runner-btn" (click)="runCustomCommand()">
+                EXECUTE
+              </button>
+            </div>
+            @if (launchFeedback(); as fb) {
+              <div class="feedback-msg" [class.fb-ok]="fb.ok" [class.fb-err]="!fb.ok">
+                {{ fb.text }}
+              </div>
+            }
+          </div>
+        </section>
+      </div>
+    }
+
+    <!-- ==================== 5. SHELL CONFIG ==================== -->
+    @if (activeSubsystem() === 'shell-config') {
+      <div class="subsystem-view">
+        <section class="panel">
+          <div class="panel-head c-blue">
+            <span class="head-num">CFG-4417</span>
+            <span>WINDOWS DESKTOP SHELL INTEGRATION</span>
+          </div>
+
+          <div class="config-grid">
+            <div class="config-card">
+              <div class="cfg-title tk-gold">AUTO-START WITH WINDOWS</div>
+              <div class="cfg-desc">Automatically launches LCARS Shell when logging into Windows.</div>
+              <div class="cfg-status">
+                STATUS:
+                <span class="badge" [ngClass]="cli.shellStatus().autostart_enabled ? 'c-teal' : 'c-pink'">
+                  {{ cli.shellStatus().autostart_enabled ? 'ENABLED' : 'DISABLED' }}
+                </span>
+              </div>
+              <div class="cfg-actions">
+                <button
+                  type="button"
+                  class="block c-teal cfg-btn"
+                  [disabled]="cli.shellStatus().autostart_enabled"
+                  (click)="cli.setAutoStart(true)"
+                >
+                  ENABLE AUTO-START
+                </button>
+                <button
+                  type="button"
+                  class="block c-pink cfg-btn"
+                  [disabled]="!cli.shellStatus().autostart_enabled"
+                  (click)="cli.setAutoStart(false)"
+                >
+                  DISABLE
+                </button>
+              </div>
+            </div>
+
+            <div class="config-card">
+              <div class="cfg-title tk-lavender">DEFAULT WINDOWS SHELL</div>
+              <div class="cfg-desc">Sets LCARS Shell as the primary Winlogon shell instead of Explorer.</div>
+              <div class="cfg-status">
+                CURRENT SHELL:
+                <span class="badge" [ngClass]="cli.shellStatus().lcars_shell_active ? 'c-orange' : 'c-sky'">
+                  {{ cli.shellStatus().lcars_shell_active ? 'LCARS SHELL' : 'WINDOWS EXPLORER' }}
+                </span>
+              </div>
+              <div class="cfg-actions">
+                <button
+                  type="button"
+                  class="block c-orange cfg-btn"
+                  (click)="cli.setWindowsShell('lcars')"
+                >
+                  SET LCARS AS SHELL
+                </button>
+                <button
+                  type="button"
+                  class="block c-sky cfg-btn"
+                  (click)="cli.setWindowsShell('explorer')"
+                >
+                  RESTORE EXPLORER
+                </button>
+              </div>
+            </div>
+
+            <div class="config-card">
+              <div class="cfg-title tk-peach">LCARS COLOR PALETTES</div>
+              <div class="cfg-desc">Select authentic canonical Star Trek LCARS visual themes.</div>
+              <div class="theme-buttons-row">
+                <button
+                  type="button"
+                  class="block theme-btn c-orange"
+                  [class.active-theme]="currentTheme() === '24th-century'"
+                  (click)="setTheme('24th-century')"
+                >
+                  24TH CENTURY (TNG)
+                </button>
+                <button
+                  type="button"
+                  class="block theme-btn c-sky"
+                  [class.active-theme]="currentTheme() === 'voyager'"
+                  (click)="setTheme('voyager')"
+                >
+                  VOYAGER
+                </button>
+                <button
+                  type="button"
+                  class="block theme-btn c-teal"
+                  [class.active-theme]="currentTheme() === 'nemesis'"
+                  (click)="setTheme('nemesis')"
+                >
+                  NEMESIS
+                </button>
+                <button
+                  type="button"
+                  class="block theme-btn c-red"
+                  [class.active-theme]="currentTheme() === 'tactical'"
+                  (click)="setTheme('tactical')"
+                >
+                  TACTICAL ALERT
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    }
+
+    <!-- ==================== 6. ACTIVITY LOG ==================== -->
+    @if (activeSubsystem() === 'activity-log') {
+      <div class="subsystem-view">
+        <section class="panel">
+          <div class="panel-head c-sky">
+            <span class="head-num">LOG-7311</span>
+            <span>SYSTEM AUDIT & ACTIVITY FEED</span>
+          </div>
+
+          <div class="log-controls-bar">
+            <div class="log-filters">
+              <button
+                type="button"
+                class="block mini-btn"
+                [class.active-desk-filter]="logFilter() === 'ALL'"
+                (click)="logFilter.set('ALL')"
+              >
+                ALL
+              </button>
+              <button
+                type="button"
+                class="block mini-btn c-sky"
+                [class.active-desk-filter]="logFilter() === 'APPLICATIONS'"
+                (click)="logFilter.set('APPLICATIONS')"
+              >
+                APPLICATIONS
+              </button>
+              <button
+                type="button"
+                class="block mini-btn c-gold"
+                [class.active-desk-filter]="logFilter() === 'FILESYSTEM'"
+                (click)="logFilter.set('FILESYSTEM')"
+              >
+                FILESYSTEM
+              </button>
+              <button
+                type="button"
+                class="block mini-btn c-teal"
+                [class.active-desk-filter]="logFilter() === 'SYSTEM'"
+                (click)="logFilter.set('SYSTEM')"
+              >
+                SYSTEM
+              </button>
+              <button
+                type="button"
+                class="block mini-btn c-red"
+                [class.active-desk-filter]="logFilter() === 'ALERTS'"
+                (click)="logFilter.set('ALERTS')"
+              >
+                ALERTS
+              </button>
+            </div>
+          </div>
+
+          <div class="log-entries-list">
+            @for (log of filteredLogs(); track log.id) {
+              <div class="log-row" [attr.data-level]="log.level">
+                <span class="log-time">{{ log.timestamp }}</span>
+                <span class="log-cat badge" [ngClass]="log.category === 'FILESYSTEM' ? 'c-gold' : log.category === 'APPLICATIONS' ? 'c-sky' : log.category === 'ALERTS' ? 'c-red' : 'c-teal'">
+                  {{ log.category }}
+                </span>
+                <span class="log-msg">{{ log.message }}</span>
+                @if (log.detail) {
+                  <span class="log-detail">{{ log.detail }}</span>
+                }
+              </div>
+            } @empty {
+              <div class="empty-desktop-msg">NO LOG ENTRIES RECORDED</div>
+            }
+          </div>
+        </section>
+      </div>
+    }
+  </main>
+</div>
