@@ -1,11 +1,11 @@
 {
-  "$schema": "https://schema.tauri.app/config/2.0.0-rc",
+  "$schema": "https://schema.tauri.app/config/2",
   "productName": "LCARS Shell",
   "version": "0.1.0",
   "identifier": "com.lcars.shell",
   "build": {
     "frontendDist": "../frontend/dist/lcars-frontend/browser",
-    "devUrl": null,
+    "devUrl": "http://localhost:4200",
     "beforeDevCommand": {
       "script": "npm run start",
       "cwd": "../frontend"
@@ -20,19 +20,20 @@
       {
         "label": "main",
         "title": "LCARS Shell",
-        "width": 1280,
-        "height": 800,
-        "minWidth": 960,
-        "minHeight": 640,
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 680,
         "resizable": true,
         "fullscreen": false,
         "center": true,
         "focus": true,
-        "visible": true
+        "visible": true,
+        "backgroundColor": "#000000"
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: asset: http://asset.localhost; connect-src 'self' ipc: http://ipc.localhost"
     }
   },
   "bundle": {

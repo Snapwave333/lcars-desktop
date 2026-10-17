@@ -1,10 +1,18 @@
+#[cfg(windows)]
 use std::io::{BufRead, BufReader, Write};
+#[cfg(windows)]
 use std::time::Duration;
 
+#[cfg(windows)]
 use named_pipe::PipeClient;
-use serde_json::{json, Map, Value};
+#[cfg(windows)]
+use serde_json::json;
+use serde_json::{Map, Value};
 
-use lcars_shell_lib::ipc::protocol::{PIPE_NAME, Request, Response};
+use lcars_shell_lib::ipc::handlers::COMMANDS;
+#[cfg(windows)]
+use lcars_shell_lib::ipc::protocol::{Request, Response};
+use lcars_shell_lib::ipc::protocol::PIPE_NAME;
 
 const EXIT_OK: i32 = 0;
 const EXIT_CMD_FAILED: i32 = 1;
@@ -87,6 +95,7 @@ fn parse_args(tokens: &[String]) -> (String, Map<String, Value>) {
   (cmd, args)
 }
 
+#[cfg(windows)]
 fn connect() -> Result<PipeClient, i32> {
   PipeClient::connect(PIPE_NAME).map_err(|e| {
     eprintln!("cannot reach LCARS daemon on {}: {e}", PIPE_NAME);
@@ -94,6 +103,7 @@ fn connect() -> Result<PipeClient, i32> {
   })
 }
 
+#[cfg(windows)]
 fn read_line(client: &mut PipeClient) -> Result<String, String> {
   let mut line = String::new();
   let mut reader = BufReader::new(client);
@@ -120,15 +130,32 @@ pub fn run(tokens: &[String]) -> i32 {
     .collect();
   if tokens.is_empty() {
     eprintln!("usage: lcars-shell <command> [--key value ...]");
-    eprintln!("commands: status show hide toggle launch alert wallpaper shell auto-start notify screenshot shutdown reload info ping minimize maximize fullscreen desktop open");
+    eprintln!("commands: {}", COMMANDS.join(" "));
     return EXIT_CMD_FAILED;
   }
 
+  if matches!(tokens[0].as_str(), "help" | "-h" | "--help") {
+    println!("usage: lcars-shell <command> [--key value ...]");
+    println!("commands: {}", COMMANDS.join(" "));
+    return EXIT_OK;
+  }
+
   let (cmd, args) = parse_args(&tokens);
+  send(cmd, Value::Object(args))
+}
+
+#[cfg(not(windows))]
+fn send(_cmd: String, _args: Value) -> i32 {
+  eprintln!("the LCARS CLI talks to the daemon over {PIPE_NAME}, which is only available on Windows");
+  EXIT_NO_DAEMON
+}
+
+#[cfg(windows)]
+fn send(cmd: String, args: Value) -> i32 {
   let request = Request {
     id: uuid::Uuid::new_v4().to_string(),
     cmd: cmd.clone(),
-    args: Value::Object(args),
+    args,
   };
 
   let mut client = match connect() {

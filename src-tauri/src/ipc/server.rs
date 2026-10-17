@@ -4,7 +4,7 @@ use named_pipe::PipeOptions;
 use tauri::AppHandle;
 
 use super::handlers::dispatch;
-use super::protocol::{PIPE_NAME, Request, Response};
+use super::protocol::{Request, Response, PIPE_NAME};
 
 fn handle_client(app: &AppHandle, server: &mut named_pipe::PipeServer) -> Result<(), String> {
   let mut reader = BufReader::new(server);
