@@ -1,32 +1,29 @@
 # LCARS Desktop Shell
 
-A Star Trek LCARS-inspired Windows desktop environment and shell interface built with **Tauri v2**, **Rust**, and **Angular**.
+A minimal, black, chat-first desktop shell built with **Tauri v2**, **Rust** and **Angular**. You type what you want, in plain words. LCARS turns it into one or more plugin commands and runs them in order. The reply is a short sentence, and the tool trace stays folded away until you ask for it.
 
-![LCARS Desktop](lcars_final_desktop.png)
+![LCARS chat](docs/chat.png)
 
-## Overview
+## Highlights
 
-LCARS Desktop provides an authentic Library Computer Access and Retrieval System (LCARS) shell experience for Windows. It combines a high-performance Rust backend with a reactive Angular frontend, providing desktop system integration, IPC named pipes, CLI control, system monitoring, and customizable LCARS panels.
-
-## Key Features
-
-- **Authentic LCARS Interface**: Faithfully recreated LCARS design system with responsive SVG/CSS styling, sound effects, and color themes (Standard, Red Alert, Silent).
-- **Daemon & CLI Control**: Built-in CLI client communicating over Windows Named Pipes (`lcars-shell hide`, `lcars-shell show`, `lcars-shell alert --mode red`, `lcars-shell notify`, etc.).
-- **Windows Integration**:
-  - System tray and taskbar management
-  - Wallpaper detection and integration
-  - Windows Run / Startup integration
-  - Multi-monitor awareness
-- **Modular Panels**:
-  - System diagnostics and stats
-  - Communications / Notifications
-  - Audio and environment controls
-  - Application launcher and custom functions
+- **Chat UI**: black, quiet and keyboard-first. Tool calls collapse into a single "4 steps · 1.0s" line. Results such as folders, apps and system facts render as compact, clickable cards.
+- **Multi-step tasks everywhere**: "red alert, wait 2 seconds, then notify Shields up and stand down" runs as four ordered steps in the desktop app *and* in a plain browser.
+- **Plugin registry**: every command is declared once in Rust (`src-tauri/src/ipc/registry.rs`) with plugin, aliases, summary and typed args. The CLI, the IPC pipe, the Tauri bridge and the chat agent all share it.
+- **Hybrid brain**: a local planner handles everyday phrasing instantly and offline. If you add a Claude API key in settings, anything the planner can't parse goes to Claude, which can chain many tool calls.
+- **Browser runtime**: when it runs outside Tauri, the app falls back to browser plugins (alert, notify, wait, calc, time, web search, open URL, clipboard) instead of failing.
 
 ## Architecture
 
-- **Backend (`src-tauri/`)**: Rust 2021 + Tauri v2, Tokio async runtime, Named Pipes IPC server, Clap CLI parser, Windows API bindings.
-- **Frontend (`frontend/`)**: Angular 20, TypeScript, Tailwind/SCSS styling, RxJS state management.
+- **Backend (`src-tauri/`)**: Rust 2021 + Tauri v2.
+  - `ipc/registry.rs` holds the command catalog, alias resolution, "did you mean" hints, argument validation and the `batch` executor.
+  - `ipc/handlers.rs` implements the commands.
+  - `ipc/server.rs` serves the Windows named pipe, with one thread per client.
+  - `ipc/commands.rs` exposes `run_command`, `run_batch` and `list_commands` to the UI.
+- **Frontend (`frontend/`)**: Angular 20 with signals.
+  - `core/planner.ts` turns natural language into ordered steps.
+  - `core/runtime.service.ts` routes each step to Rust or to a browser plugin.
+  - `core/agent.service.ts` drives the chat.
+  - `core/claude.ts` is the optional Claude tool-use loop. It is lazy-loaded, so it costs nothing until it is used.
 
 ## Prerequisites
 
@@ -64,26 +61,41 @@ For release build with tests:
    cargo run
    ```
 
+## Chat
+
+| You type | What runs |
+| --- | --- |
+| `show my desktop` | `list-dir` |
+| `open notepad and notify Ready` | `start-app` → `notify` |
+| `red alert, wait 2s, then stand down` | `alert` → `wait` → `alert` |
+| `calculate (2450 * 18%) + 12` | `calc` |
+| `/alert --mode yellow` | raw command syntax |
+
+Keys: **Enter** sends, **Shift+Enter** adds a new line, **/** opens the command palette, **↑** recalls your last message, **Esc** stops a run and **Ctrl+K** starts a new chat.
+
+The Claude API key is optional and is stored only in the app's local storage. Requests default to `claude-opus-5-5`. You can change the model in settings.
+
 ## CLI Usage
 
-The executable acts as both the shell daemon and the command-line control tool:
+One executable is both the shell daemon and its control tool. Help and validation work without the daemon running.
 
 ```powershell
-# Toggle visibility
-lcars-shell toggle
+lcars-shell help                 # every command, grouped by plugin
+lcars-shell help notify          # args for one command
 
-# Trigger alert modes
-lcars-shell alert --mode red
-lcars-shell alert --mode yellow
-lcars-shell alert --mode normal
+lcars-shell alert red            # positional values fill declared args
+lcars-shell notify "INCOMING TRANSMISSION" --body "Message from Starfleet Command"
+lcars-shell open ~/Downloads
+lcars-shell start-app notepad
 
-# Send notification
-lcars-shell notify --title "INCOMING TRANSMISSION" --body "Message from Starfleet Command"
+# chain steps with then / + / ; / && into one batch request
+lcars-shell alert red then wait 500 then notify "Shields up" then alert none
+lcars-shell ping then bogus --continue    # keep going after a failed step
 
-# Daemon status & diagnostics
-lcars-shell status
-lcars-shell info
+lcars-shell status --json        # raw JSON (default when output is piped)
 ```
+
+Exit codes: `0` ok, `1` command failed or invalid, `2` daemon unreachable. Typos get a suggestion, for example `unknown command 'notfy' (did you mean 'notify'?)`.
 
 ## License
 

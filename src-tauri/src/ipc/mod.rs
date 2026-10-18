@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod handlers;
 pub mod protocol;
+pub mod registry;
 pub mod server;
 
 pub use protocol::{PIPE_NAME, Request, Response};

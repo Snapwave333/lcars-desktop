@@ -67,7 +67,7 @@ function Test-Cli {
     throw "binary not found: $bin"
   }
 
-  $args = @("hide", "show", "toggle", "alert --mode red", "notify --title LCARS --body pipeline", "info", "ping", "bogus")
+  $args = @("help", "hide", "show", "toggle", "alert --mode red", "notify --title LCARS --body pipeline", "info", "ping", "alert red then wait 200 then notify chained then alert none", "find-app note", "bogus")
   Start-Process -FilePath $bin -WindowStyle Hidden
   try {
     for ($i = 0; $i -lt 15; $i++) {

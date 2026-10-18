@@ -3,6 +3,8 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use std::process::Command;
 
+use super::registry;
+
 const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
 const RUN_VALUE: &str = "LCARSShell";
 const WINLOGON_KEY: &str = r"HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon";
@@ -52,7 +54,7 @@ pub fn get_current_wallpaper() -> String {
   #[cfg(windows)]
   {
     if let Ok(output) = Command::new("reg")
-      .args(&["query", r"HKCU\Control Panel\Desktop", "/v", "WallPaper"])
+      .args(["query", r"HKCU\Control Panel\Desktop", "/v", "WallPaper"])
       .output()
     {
       if output.status.success() {
@@ -71,168 +73,115 @@ pub fn get_current_wallpaper() -> String {
   String::new()
 }
 
-pub fn list_desktop_items() -> Result<Value, String> {
-  let mut items = Vec::new();
-  let mut seen_paths = std::collections::HashSet::new();
-
-  let mut desktop_dirs = Vec::new();
-  if let Ok(profile) = std::env::var("USERPROFILE") {
-    let p = std::path::PathBuf::from(profile).join("Desktop");
-    if p.exists() {
-      desktop_dirs.push(p);
-    }
+fn classify(is_dir: bool, ext: &str) -> &'static str {
+  const IMAGES: [&str; 8] = ["png", "jpg", "jpeg", "ico", "bmp", "svg", "webp", "gif"];
+  const DOCS: [&str; 16] = [
+    "txt", "md", "json", "pdf", "docx", "doc", "csv", "xlsx", "yaml", "yml", "toml", "rs", "ts", "js", "html", "css",
+  ];
+  if is_dir {
+    "folder"
+  } else if ext == "lnk" || ext == "url" {
+    "shortcut"
+  } else if ext == "bat" || ext == "cmd" || ext == "ps1" {
+    "script"
+  } else if ext == "exe" {
+    "executable"
+  } else if IMAGES.contains(&ext) {
+    "image"
+  } else if DOCS.contains(&ext) {
+    "document"
+  } else {
+    "file"
   }
-  if let Ok(public_dir) = std::env::var("PUBLIC") {
-    let p = std::path::PathBuf::from(public_dir).join("Desktop");
-    if p.exists() {
-      desktop_dirs.push(p);
-    }
+}
+
+fn describe_entry(entry: &std::fs::DirEntry) -> Option<Value> {
+  let path = entry.path();
+  let raw_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+  if raw_name.eq_ignore_ascii_case("desktop.ini") {
+    return None;
   }
+  let metadata = entry.metadata().ok();
+  let is_dir = metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false);
+  let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+  let display_name = if ext == "lnk" || ext == "url" {
+    path.file_stem().and_then(|s| s.to_str()).unwrap_or(&raw_name).to_string()
+  } else {
+    raw_name.clone()
+  };
+  let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+  let modified = metadata
+    .and_then(|m| m.modified().ok())
+    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+    .map(|d| d.as_secs())
+    .unwrap_or(0);
+  Some(json!({
+    "name": display_name,
+    "filename": raw_name,
+    "path": path.to_string_lossy().to_string(),
+    "item_type": classify(is_dir, &ext),
+    "extension": ext,
+    "size_bytes": size,
+    "modified_epoch": modified,
+  }))
+}
 
-  for dir in desktop_dirs {
-    if let Ok(entries) = std::fs::read_dir(&dir) {
-      for entry in entries.flatten() {
-        let path = entry.path();
-        if path.file_name().map(|n| n == "desktop.ini").unwrap_or(false) {
-          continue;
-        }
-        let full_path = path.to_string_lossy().to_string();
-        if seen_paths.contains(&full_path) {
-          continue;
-        }
-        seen_paths.insert(full_path.clone());
-
-        let metadata = entry.metadata().ok();
-        let is_dir = metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false);
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-        let raw_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
-
-        let item_type = if is_dir {
-          "folder"
-        } else if ext == "lnk" || ext == "url" {
-          "shortcut"
-        } else if ext == "bat" || ext == "cmd" || ext == "ps1" {
-          "script"
-        } else if ext == "exe" {
-          "executable"
-        } else if ["png", "jpg", "jpeg", "ico", "bmp", "svg", "webp"].contains(&ext.as_str()) {
-          "image"
-        } else if ["txt", "md", "json", "pdf", "docx", "doc", "csv", "xlsx"].contains(&ext.as_str()) {
-          "document"
-        } else {
-          "file"
-        };
-
-        let display_name = if ext == "lnk" || ext == "url" {
-          path.file_stem().and_then(|s| s.to_str()).unwrap_or(&raw_name).to_string()
-        } else {
-          raw_name.clone()
-        };
-
-        let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
-        let modified = metadata
-          .and_then(|m| m.modified().ok())
-          .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-          .map(|d| d.as_secs())
-          .unwrap_or(0);
-
-        items.push(json!({
-          "name": display_name,
-          "filename": raw_name,
-          "path": full_path,
-          "item_type": item_type,
-          "extension": ext,
-          "size_bytes": size,
-          "modified_epoch": modified,
-        }));
-      }
-    }
-  }
-
+fn sort_items(items: &mut [Value]) {
   items.sort_by(|a, b| {
-    let name_a = a["name"].as_str().unwrap_or("");
-    let name_b = b["name"].as_str().unwrap_or("");
-    name_a.to_lowercase().cmp(&name_b.to_lowercase())
+    let dir_a = a["item_type"] == "folder";
+    let dir_b = b["item_type"] == "folder";
+    dir_b.cmp(&dir_a).then_with(|| {
+      let na = a["name"].as_str().unwrap_or("").to_lowercase();
+      let nb = b["name"].as_str().unwrap_or("").to_lowercase();
+      na.cmp(&nb)
+    })
   });
+}
 
+fn desktop_dirs() -> Vec<std::path::PathBuf> {
+  ["USERPROFILE", "PUBLIC", "HOME"]
+    .iter()
+    .filter_map(|var| std::env::var(var).ok())
+    .map(|base| std::path::PathBuf::from(base).join("Desktop"))
+    .filter(|p| p.exists())
+    .collect()
+}
+
+pub fn list_desktop_items() -> Result<Value, String> {
+  let mut seen = std::collections::HashSet::new();
+  let mut items: Vec<Value> = desktop_dirs()
+    .iter()
+    .filter_map(|dir| std::fs::read_dir(dir).ok())
+    .flat_map(|entries| entries.flatten())
+    .filter_map(|e| describe_entry(&e))
+    .filter(|v| seen.insert(v["path"].as_str().unwrap_or("").to_string()))
+    .collect();
+  sort_items(&mut items);
   Ok(Value::Array(items))
+}
+
+pub fn expand_home(path: &str) -> String {
+  let trimmed = path.trim();
+  let rest = match trimmed.strip_prefix('~') {
+    Some(r) if r.is_empty() || r.starts_with('/') || r.starts_with('\\') => r,
+    _ => return trimmed.to_string(),
+  };
+  let home = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).unwrap_or_default();
+  let sep = std::path::MAIN_SEPARATOR.to_string();
+  format!("{home}{}", rest.replace(['/', '\\'], &sep))
 }
 
 pub fn list_directory(target_path: Option<&str>) -> Result<Value, String> {
   let target = match target_path {
-    Some(p) if !p.trim().is_empty() => std::path::PathBuf::from(p.trim()),
+    Some(p) if !p.trim().is_empty() => std::path::PathBuf::from(expand_home(p)),
     _ => return list_desktop_items(),
   };
-
   if !target.exists() {
     return Err(format!("path does not exist: {}", target.display()));
   }
-
-  let mut items = Vec::new();
-  if let Ok(entries) = std::fs::read_dir(&target) {
-    for entry in entries.flatten() {
-      let path = entry.path();
-      if path.file_name().map(|n| n == "desktop.ini").unwrap_or(false) {
-        continue;
-      }
-      let full_path = path.to_string_lossy().to_string();
-      let metadata = entry.metadata().ok();
-      let is_dir = metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false);
-      let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-      let raw_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
-
-      let item_type = if is_dir {
-        "folder"
-      } else if ext == "lnk" || ext == "url" {
-        "shortcut"
-      } else if ext == "bat" || ext == "cmd" || ext == "ps1" {
-        "script"
-      } else if ext == "exe" {
-        "executable"
-      } else if ["png", "jpg", "jpeg", "ico", "bmp", "svg", "webp", "gif"].contains(&ext.as_str()) {
-        "image"
-      } else if ["txt", "md", "json", "pdf", "docx", "doc", "csv", "xlsx", "yaml", "yml", "toml", "rs", "ts", "js", "html", "css"].contains(&ext.as_str()) {
-        "document"
-      } else {
-        "file"
-      };
-
-      let display_name = if ext == "lnk" || ext == "url" {
-        path.file_stem().and_then(|s| s.to_str()).unwrap_or(&raw_name).to_string()
-      } else {
-        raw_name.clone()
-      };
-
-      let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
-      let modified = metadata
-        .and_then(|m| m.modified().ok())
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-
-      items.push(json!({
-        "name": display_name,
-        "filename": raw_name,
-        "path": full_path,
-        "item_type": item_type,
-        "extension": ext,
-        "size_bytes": size,
-        "modified_epoch": modified,
-      }));
-    }
-  }
-
-  items.sort_by(|a, b| {
-    let is_dir_a = a["item_type"] == "folder";
-    let is_dir_b = b["item_type"] == "folder";
-    if is_dir_a != is_dir_b {
-      return is_dir_b.cmp(&is_dir_a);
-    }
-    let name_a = a["name"].as_str().unwrap_or("");
-    let name_b = b["name"].as_str().unwrap_or("");
-    name_a.to_lowercase().cmp(&name_b.to_lowercase())
-  });
-
+  let entries = std::fs::read_dir(&target).map_err(|e| format!("cannot read {}: {e}", target.display()))?;
+  let mut items: Vec<Value> = entries.flatten().filter_map(|e| describe_entry(&e)).collect();
+  sort_items(&mut items);
   Ok(Value::Array(items))
 }
 
@@ -418,25 +367,16 @@ pub fn scan_installed_apps() -> Value {
 }
 
 pub fn get_shell_status() -> Value {
-  let mut autostart = false;
-  let mut shell_is_lcars = false;
-  #[cfg(windows)]
-  {
-    if let Ok(out) = Command::new("reg").args(&["query", RUN_KEY, "/v", RUN_VALUE]).output() {
-      autostart = out.status.success();
+  let query = |key: &str, value: &str| -> Option<String> {
+    if !cfg!(windows) {
+      return None;
     }
-    if let Ok(out) = Command::new("reg").args(&["query", WINLOGON_KEY, "/v", "Shell"]).output() {
-      if out.status.success() {
-        let text = String::from_utf8_lossy(&out.stdout);
-        if text.to_lowercase().contains("lcars") {
-          shell_is_lcars = true;
-        }
-      }
-    }
-  }
+    let out = Command::new("reg").args(["query", key, "/v", value]).output().ok()?;
+    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).to_lowercase())
+  };
   json!({
-    "autostart_enabled": autostart,
-    "lcars_shell_active": shell_is_lcars
+    "autostart_enabled": query(RUN_KEY, RUN_VALUE).is_some(),
+    "lcars_shell_active": query(WINLOGON_KEY, "Shell").map(|t| t.contains("lcars")).unwrap_or(false),
   })
 }
 
@@ -508,77 +448,87 @@ pub fn get_system_telemetry() -> Value {
   })
 }
 
+pub fn find_apps(query: &str) -> Vec<Value> {
+  let q = query.trim().to_lowercase();
+  if q.is_empty() {
+    return Vec::new();
+  }
+  let apps = scan_installed_apps();
+  let mut scored: Vec<(usize, Value)> = apps
+    .as_array()
+    .cloned()
+    .unwrap_or_default()
+    .into_iter()
+    .filter_map(|app| {
+      let name = app["name"].as_str().unwrap_or("").to_lowercase();
+      let score = if name == q {
+        0
+      } else if name.starts_with(&q) {
+        1
+      } else if name.split_whitespace().any(|w| w.starts_with(&q)) {
+        2
+      } else if name.contains(&q) {
+        3
+      } else {
+        return None;
+      };
+      Some((score * 1000 + name.len(), app))
+    })
+    .collect();
+  scored.sort_by_key(|(s, _)| *s);
+  scored.into_iter().map(|(_, app)| app).collect()
+}
+
+fn open_path(path: &str) -> Result<Value, String> {
+  #[cfg(windows)]
+  {
+    let p = std::path::Path::new(path);
+    let child = if p.is_dir() {
+      Command::new("explorer").arg(path).spawn().map_err(|e| e.to_string())?
+    } else {
+      use std::os::windows::process::CommandExt;
+      Command::new("cmd")
+        .args(["/C", "start", "", path])
+        .creation_flags(0x0800_0000)
+        .spawn()
+        .map_err(|e| e.to_string())?
+    };
+    Ok(json!({ "opened": true, "path": path, "pid": child.id() }))
+  }
+  #[cfg(not(windows))]
+  {
+    let child = Command::new("xdg-open").arg(path).spawn().map_err(|e| e.to_string())?;
+    Ok(json!({ "opened": true, "path": path, "pid": child.id() }))
+  }
+}
+
+fn show_window(app: &AppHandle) -> Result<(), String> {
+  let w = main_window(app)?;
+  let _ = w.unminimize();
+  w.show().map_err(|e| e.to_string())?;
+  let _ = w.set_focus();
+  bring_to_foreground(&w);
+  Ok(())
+}
+
 pub fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, String> {
+  let spec = registry::resolve(cmd).ok_or_else(|| registry::unknown(cmd))?;
+  registry::validate(spec, args)?;
+  if spec.name == "batch" {
+    return registry::run_batch(args, |c, a| dispatch(app, c, a));
+  }
+  execute(app, spec.name, args)
+}
+
+fn execute(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, String> {
   match cmd {
     "status" => {
       let visible = main_window(app)
         .map(|w| w.is_visible().unwrap_or(false))
         .unwrap_or(false);
-      Ok(json!({ "running": true, "window_visible": visible }))
+      Ok(json!({ "running": true, "window_visible": visible, "version": env!("CARGO_PKG_VERSION") }))
     }
-    "info" | "system-info" => {
-      Ok(get_system_telemetry())
-    }
-    "desktop-items" | "desktop" => {
-      list_desktop_items()
-    }
-    "list-dir" | "list_dir" => {
-      let path = args.get("path").and_then(|v| v.as_str());
-      list_directory(path)
-    }
-    "installed-apps" | "installed_apps" => {
-      Ok(scan_installed_apps())
-    }
-    "quick-locations" | "quick_locations" => {
-      Ok(get_quick_locations())
-    }
-    "shell-status" | "shell_status" => {
-      Ok(get_shell_status())
-    }
-    "reveal" => {
-      let path = str_arg(args, "path")?;
-      #[cfg(windows)]
-      {
-        let child = Command::new("explorer")
-          .args(&["/select,", path])
-          .spawn()
-          .map_err(|e| e.to_string())?;
-        Ok(json!({ "revealed": true, "path": path, "pid": child.id() }))
-      }
-      #[cfg(not(windows))]
-      {
-        Ok(json!({ "revealed": false }))
-      }
-    }
-    "open" => {
-      let path = str_arg(args, "path")?;
-      #[cfg(windows)]
-      {
-        let p = std::path::Path::new(path);
-        let child = if p.is_dir() {
-          Command::new("explorer")
-            .arg(path)
-            .spawn()
-            .map_err(|e| e.to_string())?
-        } else {
-          use std::os::windows::process::CommandExt;
-          Command::new("cmd")
-            .args(&["/C", "start", "", path])
-            .creation_flags(0x0800_0000)
-            .spawn()
-            .map_err(|e| e.to_string())?
-        };
-        Ok(json!({ "opened": true, "path": path, "pid": child.id() }))
-      }
-      #[cfg(not(windows))]
-      {
-        let child = Command::new("xdg-open")
-          .arg(path)
-          .spawn()
-          .map_err(|e| e.to_string())?;
-        Ok(json!({ "opened": true, "path": path, "pid": child.id() }))
-      }
-    }
+    "help" => Ok(registry::catalog()),
     "ping" => {
       let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -586,6 +536,45 @@ pub fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Strin
         .unwrap_or(0);
       Ok(json!({ "pong": true, "timestamp_ms": now }))
     }
+    "wait" => {
+      let ms = args.get("ms").and_then(|v| v.as_u64().or_else(|| v.as_str().and_then(|s| s.parse().ok()))).ok_or("'ms' must be a number")?;
+      let ms = ms.min(60_000);
+      std::thread::sleep(std::time::Duration::from_millis(ms));
+      Ok(json!({ "waited_ms": ms }))
+    }
+    "info" => Ok(get_system_telemetry()),
+    "list-dir" => list_directory(args.get("path").and_then(|v| v.as_str())),
+    "installed-apps" => Ok(scan_installed_apps()),
+    "find-app" => Ok(json!(find_apps(str_arg(args, "name")?))),
+    "start-app" => {
+      let name = str_arg(args, "name")?;
+      let best = find_apps(name)
+        .into_iter()
+        .next()
+        .ok_or_else(|| format!("no installed application matches '{name}'"))?;
+      let path = best["path"].as_str().unwrap_or("").to_string();
+      let mut out = open_path(&path)?;
+      out["name"] = best["name"].clone();
+      Ok(out)
+    }
+    "quick-locations" => Ok(get_quick_locations()),
+    "shell-status" => Ok(get_shell_status()),
+    "reveal" => {
+      let path = &expand_home(str_arg(args, "path")?);
+      #[cfg(windows)]
+      {
+        let child = Command::new("explorer")
+          .args(["/select,", path])
+          .spawn()
+          .map_err(|e| e.to_string())?;
+        Ok(json!({ "revealed": true, "path": path, "pid": child.id() }))
+      }
+      #[cfg(not(windows))]
+      {
+        Ok(json!({ "revealed": false, "path": path }))
+      }
+    }
+    "open" => open_path(&expand_home(str_arg(args, "path")?)),
     "minimize" => {
       main_window(app)?.minimize().map_err(|e| e.to_string())?;
       Ok(json!({ "minimized": true }))
@@ -607,11 +596,7 @@ pub fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Strin
       Ok(json!({ "fullscreen": !is_fs }))
     }
     "show" => {
-      let w = main_window(app)?;
-      let _ = w.unminimize();
-      w.show().map_err(|e| e.to_string())?;
-      let _ = w.set_focus();
-      bring_to_foreground(&w);
+      show_window(app)?;
       Ok(json!({ "visible": true }))
     }
     "hide" => {
@@ -619,20 +604,19 @@ pub fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Strin
       Ok(json!({ "visible": false }))
     }
     "toggle" => {
-      let w = main_window(app)?;
-      let visible = w.is_visible().unwrap_or(false);
+      let visible = main_window(app)?.is_visible().unwrap_or(false);
       if visible {
-        w.hide().map_err(|e| e.to_string())?;
+        main_window(app)?.hide().map_err(|e| e.to_string())?;
       } else {
-        let _ = w.unminimize();
-        w.show().map_err(|e| e.to_string())?;
-        let _ = w.set_focus();
-        bring_to_foreground(&w);
+        show_window(app)?;
       }
       Ok(json!({ "visible": !visible }))
     }
     "alert" => {
       let mode = str_arg(args, "mode")?;
+      if !["red", "yellow", "blue", "none"].contains(&mode) {
+        return Err(format!("unknown alert mode '{mode}' (red | yellow | blue | none)"));
+      }
       app.emit("lcars://alert", mode).map_err(|e| e.to_string())?;
       Ok(json!({ "mode": mode }))
     }
@@ -645,8 +629,7 @@ pub fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Strin
       let title = str_arg(args, "title")?;
       let body = args.get("body").and_then(|v| v.as_str()).unwrap_or("");
       let payload = json!({ "title": title, "body": body });
-      app.emit("lcars://notify", payload.clone())
-        .map_err(|e| e.to_string())?;
+      app.emit("lcars://notify", payload.clone()).map_err(|e| e.to_string())?;
       log::info!("notify {payload}");
       Ok(payload)
     }
@@ -656,11 +639,11 @@ pub fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Strin
     }
     "launch" => {
       let path = str_arg(args, "path")?;
-      let list = str_list(args, "args");
-      let detached = args
-        .get("detached")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+      let list = match args.get("args") {
+        Some(Value::String(s)) => s.split_whitespace().map(str::to_string).collect(),
+        _ => str_list(args, "args"),
+      };
+      let detached = args.get("detached").and_then(|v| v.as_bool()).unwrap_or(true);
       let mut cmd = Command::new(path);
       cmd.args(&list);
       if detached {
@@ -668,26 +651,17 @@ pub fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Strin
           .stdout(std::process::Stdio::null())
           .stderr(std::process::Stdio::null());
       }
-      let child = cmd.spawn().map_err(|e| e.to_string())?;
-      Ok(json!({ "pid": child.id() }))
+      let child = cmd.spawn().map_err(|e| format!("cannot start '{path}': {e}"))?;
+      Ok(json!({ "pid": child.id(), "path": path }))
     }
     "auto-start" => {
-      let enable = args
-        .get("enable")
-        .and_then(|v| v.as_bool())
-        .ok_or("missing 'enable' argument")?;
+      let enable = match args.get("enable") {
+        Some(Value::Bool(b)) => *b,
+        Some(Value::String(s)) => matches!(s.as_str(), "true" | "1" | "on" | "yes"),
+        _ => return Err("missing 'enable' argument".to_string()),
+      };
       if enable {
-        reg(&[
-          "add",
-          RUN_KEY,
-          "/v",
-          RUN_VALUE,
-          "/t",
-          "REG_SZ",
-          "/d",
-          &exe_path()?,
-          "/f",
-        ])?;
+        reg(&["add", RUN_KEY, "/v", RUN_VALUE, "/t", "REG_SZ", "/d", &exe_path()?, "/f"])?;
       } else {
         reg(&["delete", RUN_KEY, "/v", RUN_VALUE, "/f"])?;
       }
@@ -695,35 +669,12 @@ pub fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Strin
     }
     "shell" => {
       let set = str_arg(args, "set")?;
-      match set {
-        "lcars" => {
-          reg(&[
-            "add",
-            WINLOGON_KEY,
-            "/v",
-            "Shell",
-            "/t",
-            "REG_SZ",
-            "/d",
-            &exe_path()?,
-            "/f",
-          ])?;
-        }
-        "explorer" => {
-          reg(&[
-            "add",
-            WINLOGON_KEY,
-            "/v",
-            "Shell",
-            "/t",
-            "REG_SZ",
-            "/d",
-            "explorer.exe",
-            "/f",
-          ])?;
-        }
-        _ => return Err(format!("unknown shell target '{set}'")),
-      }
+      let target = match set {
+        "lcars" => exe_path()?,
+        "explorer" => "explorer.exe".to_string(),
+        _ => return Err(format!("unknown shell target '{set}' (lcars | explorer)")),
+      };
+      reg(&["add", WINLOGON_KEY, "/v", "Shell", "/t", "REG_SZ", "/d", &target, "/f"])?;
       Ok(json!({ "set": set }))
     }
     "shutdown" => {
@@ -733,11 +684,19 @@ pub fn dispatch(app: &AppHandle, cmd: &str, args: &Value) -> Result<Value, Strin
     "screenshot" => {
       let path = str_arg(args, "path")?;
       let w = main_window(app)?;
-      let hwnd = w.hwnd().map_err(|e| e.to_string())?.0;
-      capture_window(hwnd, path)?;
-      Ok(json!({ "path": path }))
+      #[cfg(windows)]
+      {
+        let hwnd = w.hwnd().map_err(|e| e.to_string())?.0;
+        capture_window(hwnd, path)?;
+        Ok(json!({ "path": path }))
+      }
+      #[cfg(not(windows))]
+      {
+        let _ = w;
+        capture_window(path)
+      }
     }
-    _ => Err(format!("unknown command '{cmd}'")),
+    _ => Err(registry::unknown(cmd)),
   }
 }
 
@@ -774,7 +733,6 @@ fn capture_window(hwnd: *mut core::ffi::c_void, path: &str) -> Result<(), String
     let mem = CreateCompatibleDC(hdc);
     let bmp = CreateCompatibleBitmap(hdc, width, height);
     let old = SelectObject(mem, bmp);
-    // PW_RENDERFULLCONTENT captures DWM/WebView2 content even when occluded.
     if PrintWindow(hwnd, mem, 2) == 0 {
       BitBlt(mem, 0, 0, width, height, hdc, 0, 0, SRCCOPY);
     }
@@ -835,7 +793,7 @@ fn capture_window(hwnd: *mut core::ffi::c_void, path: &str) -> Result<(), String
 }
 
 #[cfg(not(windows))]
-fn capture_window(_hwnd: isize, _path: &str) -> Result<(), String> {
+fn capture_window(_path: &str) -> Result<Value, String> {
   Err("screenshots are only implemented on Windows".to_string())
 }
 
@@ -861,5 +819,47 @@ pub fn bring_to_foreground(w: &tauri::WebviewWindow) {
   #[cfg(not(windows))]
   {
     let _ = w.set_focus();
+  }
+}
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn classifies_entries() {
+    assert_eq!(classify(true, ""), "folder");
+    assert_eq!(classify(false, "lnk"), "shortcut");
+    assert_eq!(classify(false, "ps1"), "script");
+    assert_eq!(classify(false, "exe"), "executable");
+    assert_eq!(classify(false, "gif"), "image");
+    assert_eq!(classify(false, "md"), "document");
+    assert_eq!(classify(false, "zzz"), "file");
+  }
+
+  #[test]
+  fn lists_a_directory_with_folders_first() {
+    let dir = std::env::temp_dir().join(format!("lcars-test-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(dir.join("b-folder")).unwrap();
+    std::fs::write(dir.join("a.txt"), "x").unwrap();
+    std::fs::write(dir.join("desktop.ini"), "x").unwrap();
+    let items = list_directory(dir.to_str()).unwrap();
+    let names: Vec<&str> = items.as_array().unwrap().iter().map(|v| v["name"].as_str().unwrap()).collect();
+    assert_eq!(names, vec!["b-folder", "a.txt"]);
+    std::fs::remove_dir_all(&dir).unwrap();
+  }
+
+  #[test]
+  fn expands_home_prefix() {
+    let home = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).unwrap();
+    let sep = std::path::MAIN_SEPARATOR;
+    assert_eq!(expand_home("~/Downloads"), format!("{home}{sep}Downloads"));
+    assert_eq!(expand_home("~"), home);
+    assert_eq!(expand_home("~user/x"), "~user/x");
+    assert_eq!(expand_home("C:\\x"), "C:\\x");
+  }
+
+  #[test]
+  fn missing_directory_is_an_error() {
+    assert!(list_directory(Some("/definitely/not/here/lcars")).is_err());
   }
 }

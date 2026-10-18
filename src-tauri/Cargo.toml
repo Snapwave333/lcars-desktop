@@ -1,7 +1,7 @@
 [package]
 name = "lcars-shell"
 version = "0.1.0"
-description = "A Tauri App"
+description = "LCARS desktop shell with a plugin command system"
 authors = ["you"]
 license = ""
 repository = ""
@@ -10,8 +10,6 @@ rust-version = "1.77.2"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
 name = "lcars-shell"
@@ -32,7 +30,9 @@ tauri = { version = "2.0.2" }
 tauri-plugin-log = "2.0.0-rc"
 tokio = { version = "1", features = ["full"] }
 uuid = { version = "1", features = ["v4"] }
-named_pipe = "0.4"
 clap = { version = "4", features = ["derive"] }
 windows-sys = { version = "0.59", features = ["Win32_System_Console", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_Storage_Xps", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_SystemInformation"] }
 png = "0.18"
+
+[target.'cfg(windows)'.dependencies]
+named_pipe = "0.4"

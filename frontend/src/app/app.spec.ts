@@ -1,95 +1,63 @@
 import { TestBed } from '@angular/core/testing';
-import { App } from './app';
-import { CliBridgeService } from './services/cli-bridge.service';
+
+import { App, rich } from './app';
+import { AgentService } from './core/agent.service';
 
 describe('App', () => {
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [App],
-      providers: [CliBridgeService],
-    }).compileComponents();
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [App] }).compileComponents();
   });
 
-  it('should create the app', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
-  });
-
-  it('should render LCARS DESKTOP title', () => {
+  it('renders the empty state with suggestions', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('LCARS DESKTOP');
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('h1')?.textContent).toContain('What should I do?');
+    expect(el.querySelectorAll('.chip').length).toBe(4);
   });
 
-  it('should have initial active subsystem as desktop', () => {
+  it('runs a multi-step request end to end in the browser and hides the trace', async () => {
     const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    expect(app.activeSubsystem()).toBe('desktop');
+    const agent = TestBed.inject(AgentService);
+    await agent.send('red alert then calculate 6*7 then stand down');
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const reply = agent.messages().at(-1)!;
+    expect(reply.steps.map((s) => s.state)).toEqual(['done', 'done', 'done']);
+    expect(reply.text).toContain('= **42**');
+    expect(el.querySelector('.trace')?.textContent).toContain('3 steps');
+    expect(el.querySelector('.steps')).toBeNull();
+    (el.querySelector('.trace') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.steps li').length).toBe(3);
   });
 
-  it('should switch subsystems when requested', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    
-    app.selectSubsystem('ops');
-    expect(app.activeSubsystem()).toBe('ops');
-
-    app.selectSubsystem('sensors');
-    expect(app.activeSubsystem()).toBe('sensors');
-
-    app.selectSubsystem('nav');
-    expect(app.activeSubsystem()).toBe('nav');
-
-    app.selectSubsystem('database');
-    expect(app.activeSubsystem()).toBe('database');
+  it('does not echo its own notifications but shows external ones', async () => {
+    const agent = TestBed.inject(AgentService);
+    await agent.send('notify Hello');
+    expect(agent.messages().filter((m) => m.role === 'event').length).toBe(0);
+    await agent.runtime.run({ cmd: 'notify', args: { title: 'From CLI' } });
+    expect(agent.messages().at(-1)?.role).toBe('event');
   });
 
-  it('should filter imported desktop items by type and search query', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    
-    const allItems = app.filteredDesktopItems();
-    expect(allItems.length).toBeGreaterThan(0);
-
-    app.desktopFilter.set('shortcut');
-    const shortcuts = app.filteredDesktopItems();
-    expect(shortcuts.every((item) => item.item_type === 'shortcut')).toBeTrue();
-
-    app.desktopSearch = 'Atlas';
-    const searched = app.filteredDesktopItems();
-    expect(searched.every((item) => item.name.includes('Atlas'))).toBeTrue();
+  it('explains unknown requests when no API key is set', async () => {
+    const agent = TestBed.inject(AgentService);
+    await agent.send('compose a symphony');
+    const reply = agent.messages().at(-1)!;
+    expect(reply.state).toBe('error');
+    expect(reply.text).toContain('help');
   });
 
-  it('should compute valid stardate and clock signals', () => {
+  it('shows matching commands for slash input', () => {
     const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    expect(app.stardate()).toMatch(/^\d{5}\.\d$/);
-    expect(app.clock()).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+    fixture.componentInstance.onInput('/al');
+    fixture.detectChanges();
+    const names = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.palette .name')).map((n) => n.textContent);
+    expect(names).toContain('/alert');
   });
 
-  it('should allow selecting starships in the database', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    const voyager = app.starships.find((s) => s.name.includes('VOYAGER'));
-    expect(voyager).toBeDefined();
-    if (voyager) {
-      app.selectShip(voyager);
-      expect(app.selectedShip().name).toContain('VOYAGER');
-    }
-  });
-
-  it('should format uptime seconds into readable hh:mm:ss format', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    expect(app.formatUptime(3665)).toBe('01:01:05');
-  });
-
-  it('should update theme profile', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    app.setTheme('nemesis');
-    expect(app.currentTheme()).toBe('nemesis');
+  it('escapes html in rich text', () => {
+    expect(rich('<b>x</b> **y** `z`')).toBe('&lt;b&gt;x&lt;/b&gt; <strong>y</strong> <code>z</code>');
   });
 });

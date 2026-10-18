@@ -1,495 +1,224 @@
-import { Component, OnDestroy, inject, signal, computed, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import {
-  CliBridgeService,
-  type AlertMode,
-  type DesktopItem,
-  type QuickLocation,
-  type InstalledApp,
-} from './services/cli-bridge.service';
+import { Component, ElementRef, HostListener, computed, effect, inject, signal, viewChild } from '@angular/core';
 
-export type SubsystemId = 'desktop' | 'apps' | 'performance' | 'utilities' | 'shell-config' | 'activity-log';
-export type LcarsTheme = '24th-century' | 'voyager' | 'nemesis' | 'tactical';
-export type FileFilter = 'ALL' | 'shortcut' | 'folder' | 'script' | 'executable' | 'document' | 'image' | 'file';
-export type FileSort = 'name-asc' | 'name-desc' | 'size-desc' | 'size-asc' | 'date-desc' | 'date-asc';
-export type ViewMode = 'grid' | 'table';
+import { AgentService, ChatMessage, StepView } from './core/agent.service';
+import { CommandSpec, DEFAULT_MODEL } from './core/catalog';
+import { CardRow } from './core/summarize';
 
-export interface BreadcrumbItem {
-  label: string;
-  path: string;
+const LIST_PREVIEW = 6;
+
+const SUGGESTIONS = {
+  desktop: [
+    'Show my desktop',
+    'Red alert, wait 2 seconds, then stand down',
+    'Open notepad then notify Ready for input',
+    'How is the system doing?',
+  ],
+  browser: [
+    'Red alert, wait 2 seconds, then stand down',
+    'Calculate (2450 * 18%) + 12',
+    'What time is it?',
+    'Search the web for LCARS interface design',
+  ],
+};
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 }
 
-export interface WindowsAppPreset {
-  id: string;
-  name: string;
-  category: 'TERMINAL' | 'MANAGEMENT' | 'UTILITY';
-  code: string;
-  path: string;
-  args?: string[];
-  color: string;
-  description: string;
+export function rich(text: string): string {
+  return escapeHtml(text)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
 }
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
 })
-export class App implements OnDestroy {
-  protected readonly cli = inject(CliBridgeService);
+export class App {
+  protected readonly agent = inject(AgentService);
+  protected readonly runtime = this.agent.runtime;
+  protected readonly defaultModel = DEFAULT_MODEL;
+  protected readonly preview = LIST_PREVIEW;
 
-  readonly activeSubsystem = signal<SubsystemId>('desktop');
-  readonly currentTheme = signal<LcarsTheme>('24th-century');
-  readonly stardate = signal('41000.0');
-  readonly clock = signal('00:00:00 AM');
-  readonly dateFormatted = signal('00.00.0000');
+  readonly draft = signal('');
+  readonly settingsOpen = signal(false);
+  readonly expandedSteps = signal<ReadonlySet<string>>(new Set());
+  readonly expandedCards = signal<ReadonlySet<string>>(new Set());
+  readonly paletteIndex = signal(0);
+  readonly keyVisible = signal(false);
 
-  // File explorer & Desktop states
-  readonly viewMode = signal<ViewMode>('grid');
-  readonly desktopFilter = signal<FileFilter>('ALL');
-  readonly fileSort = signal<FileSort>('name-asc');
-  desktopSearch = '';
-  customDirPath = '';
-  readonly selectedItem = signal<DesktopItem | null>(null);
-  readonly copiedNotification = signal<string | null>(null);
+  private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
+  private readonly input = viewChild<ElementRef<HTMLTextAreaElement>>('input');
 
-  // Applications search & filter
-  appSearch = '';
-  readonly appCategoryFilter = signal<string>('ALL');
+  readonly suggestions = computed(() => SUGGESTIONS[this.runtime.surface()]);
 
-  // Custom Application Runner
-  launchPath = 'powershell.exe';
-  launchArgs = '';
-  launchDetached = true;
-  readonly launchFeedback = signal<{ text: string; ok: boolean } | null>(null);
-
-  // Notification Sender
-  notificationTitle = 'SYSTEM NOTICE';
-  notificationBody = 'Windows desktop shell verification nominal.';
-  readonly logFilter = signal<'ALL' | 'APPLICATIONS' | 'FILESYSTEM' | 'SYSTEM' | 'ALERTS' | 'CONFIG'>('ALL');
-
-  // Directory History
-  readonly pathHistory = signal<string[]>([]);
-
-  // Curated Windows Utilities
-  readonly windowsTools: WindowsAppPreset[] = [
-    { id: 'task', name: 'TASK MANAGER', category: 'MANAGEMENT', code: 'SYS-01', path: 'taskmgr.exe', color: 'c-orange', description: 'Monitor processes, performance & startup' },
-    { id: 'ps', name: 'POWERSHELL', category: 'TERMINAL', code: 'CMD-01', path: 'powershell.exe', color: 'c-blue', description: 'Windows PowerShell Terminal' },
-    { id: 'cmd', name: 'COMMAND PROMPT', category: 'TERMINAL', code: 'CMD-02', path: 'cmd.exe', color: 'c-sky', description: 'Standard Command Interpreter' },
-    { id: 'wt', name: 'WINDOWS TERMINAL', category: 'TERMINAL', code: 'CMD-03', path: 'wt.exe', color: 'c-peri', description: 'Modern Tabbed Terminal' },
-    { id: 'reg', name: 'REGISTRY EDITOR', category: 'MANAGEMENT', code: 'SYS-02', path: 'regedit.exe', color: 'c-peach', description: 'Windows Registry Configuration' },
-    { id: 'ctrl', name: 'CONTROL PANEL', category: 'MANAGEMENT', code: 'SYS-03', path: 'control.exe', color: 'c-gold', description: 'Classic Control Panel Applets' },
-    { id: 'settings', name: 'SYSTEM SETTINGS', category: 'MANAGEMENT', code: 'SYS-04', path: 'explorer.exe', args: ['ms-settings:'], color: 'c-lavender', description: 'Windows 11 Modern Settings' },
-    { id: 'dev', name: 'DEVICE MANAGER', category: 'MANAGEMENT', code: 'SYS-05', path: 'devmgmt.msc', color: 'c-teal', description: 'Hardware Devices & Drivers' },
-    { id: 'disk', name: 'DISK MANAGEMENT', category: 'MANAGEMENT', code: 'SYS-06', path: 'diskmgmt.msc', color: 'c-gold', description: 'Partitions & Storage Drives' },
-    { id: 'event', name: 'EVENT VIEWER', category: 'MANAGEMENT', code: 'SYS-07', path: 'eventvwr.msc', color: 'c-peri', description: 'Windows Diagnostics & Event Logs' },
-    { id: 'serv', name: 'SERVICES', category: 'MANAGEMENT', code: 'SYS-08', path: 'services.msc', color: 'c-blue', description: 'Windows Background Services' },
-    { id: 'resmon', name: 'RESOURCE MONITOR', category: 'MANAGEMENT', code: 'SYS-09', path: 'resmon.exe', color: 'c-teal', description: 'In-Depth CPU, RAM & Disk Monitor' },
-    { id: 'exp', name: 'FILE EXPLORER', category: 'UTILITY', code: 'UTL-01', path: 'explorer.exe', color: 'c-gold', description: 'Native Windows File Explorer' },
-    { id: 'calc', name: 'CALCULATOR', category: 'UTILITY', code: 'UTL-02', path: 'calc.exe', color: 'c-peach', description: 'Windows Standard Calculator' },
-    { id: 'note', name: 'NOTEPAD', category: 'UTILITY', code: 'UTL-03', path: 'notepad.exe', color: 'c-lavender', description: 'Fast Plain Text Editor' },
-  ];
-
-  // Segmented Breadcrumb computation
-  readonly breadcrumbs = computed<BreadcrumbItem[]>(() => {
-    const raw = this.cli.currentDirectory().trim();
-    if (!raw) {
-      return [{ label: 'DESKTOP', path: '' }];
-    }
-    const clean = raw.replace(/[\\/]+$/, '');
-    const parts = clean.split(/[\\/]/);
-    const crumbs: BreadcrumbItem[] = [{ label: 'DESKTOP', path: '' }];
-    let acc = '';
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      if (i === 0 && part.includes(':')) {
-        acc = `${part}\\`;
-        crumbs.push({ label: part, path: acc });
-      } else {
-        acc = acc ? (acc.endsWith('\\') ? `${acc}${part}` : `${acc}\\${part}`) : part;
-        crumbs.push({ label: part, path: acc });
-      }
-    }
-    return crumbs;
+  readonly palette = computed<CommandSpec[]>(() => {
+    const d = this.draft();
+    if (!d.startsWith('/') || /\s/.test(d)) return [];
+    const q = d.slice(1).toLowerCase();
+    return this.runtime
+      .catalog()
+      .filter((c) => c.name.startsWith(q) || c.aliases.some((a) => a.startsWith(q)) || (q.length > 1 && c.summary.toLowerCase().includes(q)))
+      .slice(0, 7);
   });
 
-  // Category counts computation for filter tabs
-  readonly categoryCounts = computed(() => {
-    const items = this.cli.desktopItems();
-    return {
-      all: items.length,
-      shortcut: items.filter((i) => i.item_type === 'shortcut').length,
-      folder: items.filter((i) => i.item_type === 'folder').length,
-      script: items.filter((i) => i.item_type === 'script').length,
-      executable: items.filter((i) => i.item_type === 'executable').length,
-      document: items.filter((i) => i.item_type === 'document').length,
-      image: items.filter((i) => i.item_type === 'image').length,
-    };
+  readonly modeLabel = computed(() => {
+    const where = this.runtime.surface() === 'desktop' ? 'desktop' : 'browser';
+    return this.agent.aiEnabled() ? `${where} · claude` : where;
   });
-
-  // Filtered Installed Apps (130+ discovered real Windows apps)
-  readonly filteredInstalledApps = computed(() => {
-    const cat = this.appCategoryFilter();
-    const q = this.appSearch.trim().toLowerCase();
-    return this.cli.installedApps().filter((app) => {
-      if (cat !== 'ALL' && app.category !== cat) return false;
-      if (q && !app.name.toLowerCase().includes(q) && !app.category.toLowerCase().includes(q) && !app.code.toLowerCase().includes(q)) {
-        return false;
-      }
-      return true;
-    });
-  });
-
-  readonly installedAppCategories = computed(() => {
-    const apps = this.cli.installedApps();
-    const set = new Set<string>();
-    apps.forEach((a) => set.add(a.category));
-    return ['ALL', ...Array.from(set).sort()];
-  });
-
-  // Segmented LCARS Meter blocks (20 segments = 5% each)
-  readonly memoryMeterSegments = computed(() => {
-    const pct = this.cli.telemetry().memory_load_percent;
-    return Array.from({ length: 20 }, (_, i) => ({
-      index: i,
-      active: (i + 1) * 5 <= pct,
-    }));
-  });
-
-  private readonly clockTimer = setInterval(() => this.tick(), 1000);
 
   constructor() {
-    this.tick();
+    effect(() => {
+      this.agent.messages();
+      queueMicrotask(() => this.scrollToEnd());
+    });
+    effect(() => {
+      this.palette();
+      this.paletteIndex.set(0);
+    });
   }
 
   @HostListener('window:keydown', ['$event'])
-  handleKeyboardEvent(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-      if (this.copiedNotification()) {
-        this.copiedNotification.set(null);
-      } else if (this.selectedItem()) {
-        this.selectedItem.set(null);
-      } else if (this.desktopSearch) {
-        this.desktopSearch = '';
-      } else if (this.cli.notice()) {
-        this.clearNotice();
+  onKey(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      if (this.settingsOpen()) this.settingsOpen.set(false);
+      else if (this.agent.busy()) this.agent.stop();
+      else if (this.draft()) this.draft.set('');
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      this.newChat();
+    }
+  }
+
+  onInputKey(e: KeyboardEvent) {
+    const items = this.palette();
+    if (items.length) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const dir = e.key === 'ArrowDown' ? 1 : -1;
+        this.paletteIndex.set((this.paletteIndex() + dir + items.length) % items.length);
+        return;
       }
-    } else if (event.key === 'F5') {
-      event.preventDefault();
-      void this.refreshCurrentDirectory();
-    }
-  }
-
-  selectSubsystem(id: SubsystemId) {
-    this.activeSubsystem.set(id);
-    if (id === 'apps' && this.cli.installedApps().length === 0) {
-      void this.cli.fetchInstalledApps();
-    }
-  }
-
-  setTheme(theme: LcarsTheme) {
-    this.currentTheme.set(theme);
-    this.cli.addLog('CONFIG', `LCARS visual theme changed: ${theme.toUpperCase()}`, undefined, 'info');
-  }
-
-  async setAlert(mode: AlertMode) {
-    await this.cli.setAlert(mode);
-  }
-
-  cycleAlert() {
-    const cur = this.cli.alertMode();
-    if (cur === 'none') {
-      void this.setAlert('yellow');
-    } else if (cur === 'yellow') {
-      void this.setAlert('red');
-    } else {
-      void this.setAlert('none');
-    }
-  }
-
-  // --- File Explorer & Desktop Operations ---
-
-  async refreshCurrentDirectory() {
-    await this.cli.listDirectory(this.cli.currentDirectory());
-  }
-
-  async navigateToPath(path: string) {
-    const cur = this.cli.currentDirectory();
-    if (cur && cur !== path) {
-      this.pathHistory.update((h) => [...h, cur]);
-    }
-    await this.cli.listDirectory(path);
-    this.customDirPath = path;
-    this.selectedItem.set(null);
-  }
-
-  async navigateToQuickLocation(loc: QuickLocation) {
-    this.activeSubsystem.set('desktop');
-    await this.navigateToPath(loc.path);
-  }
-
-  async navigateBack() {
-    const hist = this.pathHistory();
-    if (hist.length > 0) {
-      const prev = hist[hist.length - 1];
-      this.pathHistory.update((h) => h.slice(0, -1));
-      await this.cli.listDirectory(prev);
-      this.customDirPath = prev;
-      this.selectedItem.set(null);
-    } else {
-      await this.navigateToPath('');
-    }
-  }
-
-  async navigateUp() {
-    const cur = this.cli.currentDirectory();
-    if (!cur) return;
-    const parts = cur.replace(/[\\/]+$/, '').split(/[\\/]/);
-    if (parts.length > 1) {
-      const parent = parts.slice(0, -1).join('\\') + (parts.length === 2 && parts[0].endsWith(':') ? '\\' : '');
-      await this.navigateToPath(parent);
-    } else {
-      await this.navigateToPath('');
-    }
-  }
-
-  async onCustomPathSubmit() {
-    if (this.customDirPath.trim()) {
-      await this.navigateToPath(this.customDirPath.trim());
-    } else {
-      await this.navigateToPath('');
-    }
-  }
-
-  selectItem(item: DesktopItem) {
-    this.selectedItem.set(item);
-  }
-
-  async openItem(item: DesktopItem) {
-    if (item.item_type === 'folder') {
-      await this.navigateToPath(item.path);
-    } else {
-      await this.cli.openItem(item.path);
-    }
-  }
-
-  async openSelectedItem() {
-    const item = this.selectedItem();
-    if (item) {
-      await this.openItem(item);
-    }
-  }
-
-  async revealSelectedItem() {
-    const item = this.selectedItem();
-    if (item) {
-      await this.cli.revealItem(item.path);
-    }
-  }
-
-  async openCurrentFolderInExplorer() {
-    const dir = this.cli.currentDirectory() || 'Desktop';
-    await this.cli.openItem(dir);
-  }
-
-  async copyItemPath(item: DesktopItem) {
-    try {
-      await navigator.clipboard.writeText(item.path);
-      this.copiedNotification.set(`COPIED TO CLIPBOARD: ${item.path}`);
-      setTimeout(() => this.copiedNotification.set(null), 3000);
-    } catch {
-      this.copiedNotification.set(`FAILED TO COPY`);
-      setTimeout(() => this.copiedNotification.set(null), 3000);
-    }
-  }
-
-  // --- App Launcher ---
-
-  async launchInstalledApp(app: InstalledApp) {
-    await this.cli.openItem(app.path);
-  }
-
-  async launchPreset(app: WindowsAppPreset) {
-    await this.cli.launchApp(app.path, app.args, true);
-  }
-
-  async runCustomCommand() {
-    if (!this.launchPath.trim()) return;
-    const args = this.launchArgs.trim() ? this.launchArgs.split(' ') : [];
-    const res = await this.cli.launchApp(this.launchPath, args, this.launchDetached);
-    if (res.ok) {
-      this.launchFeedback.set({ text: `Launched PID: ${res.pid ?? 'Detached'}`, ok: true });
-    } else {
-      this.launchFeedback.set({ text: `Failed: ${res.error ?? 'Unknown error'}`, ok: false });
-    }
-    setTimeout(() => this.launchFeedback.set(null), 4000);
-  }
-
-  // --- Filtering & Sorting ---
-
-  filteredItems(): DesktopItem[] {
-    const items = this.cli.desktopItems();
-    const filter = this.desktopFilter();
-    const q = this.desktopSearch.trim().toLowerCase();
-    const sort = this.fileSort();
-
-    let result = items.filter((item) => {
-      if (filter === 'shortcut' && item.item_type !== 'shortcut') return false;
-      if (filter === 'folder' && item.item_type !== 'folder') return false;
-      if (filter === 'script' && item.item_type !== 'script') return false;
-      if (filter === 'executable' && item.item_type !== 'executable') return false;
-      if (filter === 'document' && item.item_type !== 'document') return false;
-      if (filter === 'image' && item.item_type !== 'image') return false;
-      if (filter === 'file' && item.item_type !== 'file') return false;
-
-      if (q && !item.name.toLowerCase().includes(q) && !item.filename.toLowerCase().includes(q)) {
-        return false;
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault();
+        this.pickCommand(items[this.paletteIndex()]);
+        return;
       }
-      return true;
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      this.submit();
+      return;
+    }
+    if (e.key === 'ArrowUp' && !this.draft()) {
+      const last = [...this.agent.messages()].reverse().find((m) => m.role === 'user');
+      if (last) {
+        e.preventDefault();
+        this.setDraft(last.text);
+      }
+    }
+  }
+
+  onInput(value: string) {
+    this.draft.set(value);
+    this.autosize();
+  }
+
+  pickCommand(c: CommandSpec) {
+    this.setDraft(`/${c.name} `);
+  }
+
+  submit(text?: string) {
+    const value = (text ?? this.draft()).trim();
+    if (!value || this.agent.busy()) return;
+    this.setDraft('');
+    void this.agent.send(value);
+  }
+
+  useSuggestion(s: string) {
+    this.submit(s);
+  }
+
+  act(row: CardRow) {
+    if (row.action) void this.agent.runAction(row.action, row.label);
+  }
+
+  newChat() {
+    this.agent.clear();
+    this.expandedSteps.set(new Set());
+    this.expandedCards.set(new Set());
+    this.focusInput();
+  }
+
+  toggle(set: 'steps' | 'cards', id: string) {
+    const target = set === 'steps' ? this.expandedSteps : this.expandedCards;
+    const next = new Set(target());
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    target.set(next);
+  }
+
+  stepSummary(m: ChatMessage): string {
+    const total = m.steps.length;
+    const ms = m.steps.reduce((acc, s) => acc + (s.ms ?? 0), 0);
+    const failed = m.steps.filter((s) => s.state === 'error').length;
+    const base = `${total} step${total === 1 ? '' : 's'}`;
+    const time = ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
+    return failed ? `${base} · ${failed} failed` : `${base} · ${time}`;
+  }
+
+  activity(m: ChatMessage): string {
+    const i = m.steps.findIndex((s) => s.state === 'running');
+    if (i < 0) return m.engine === 'claude' ? 'Thinking' : 'Working';
+    const label = this.stepLabel(m.steps[i]);
+    return m.steps.length > 1 ? `Step ${i + 1} of ${m.steps.length} · ${label}` : label;
+  }
+
+  stepLabel(s: StepView): string {
+    const values = Object.values(s.args)
+      .filter((v) => v !== '' && v !== undefined && v !== null && typeof v !== 'object')
+      .map(String);
+    const detail = values.join(' ').slice(0, 60);
+    return detail ? `${s.cmd} ${detail}` : s.cmd;
+  }
+
+  rich(text: string): string {
+    return rich(text);
+  }
+
+  private setDraft(v: string) {
+    this.draft.set(v);
+    const el = this.input()?.nativeElement;
+    if (el) el.value = v;
+    queueMicrotask(() => {
+      this.autosize();
+      this.focusInput();
     });
-
-    result.sort((a, b) => {
-      if (a.item_type === 'folder' && b.item_type !== 'folder') return -1;
-      if (a.item_type !== 'folder' && b.item_type === 'folder') return 1;
-
-      switch (sort) {
-        case 'name-asc':
-          return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-        case 'name-desc':
-          return b.name.localeCompare(a.name, undefined, { numeric: true, sensitivity: 'base' });
-        case 'size-desc':
-          return b.size_bytes - a.size_bytes;
-        case 'size-asc':
-          return a.size_bytes - b.size_bytes;
-        case 'date-desc':
-          return b.modified_epoch - a.modified_epoch;
-        case 'date-asc':
-          return a.modified_epoch - b.modified_epoch;
-        default:
-          return 0;
-      }
-    });
-
-    return result;
   }
 
-  getItemBadgeColor(item: DesktopItem): string {
-    switch (item.item_type) {
-      case 'shortcut': return 'c-sky';
-      case 'folder': return 'c-gold';
-      case 'script': return 'c-orange';
-      case 'executable': return 'c-peach';
-      case 'document': return 'c-lavender';
-      case 'image': return 'c-teal';
-      default: return 'c-peri';
+  private focusInput() {
+    const el = this.input()?.nativeElement;
+    if (el) {
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
     }
   }
 
-  getItemCode(item: DesktopItem): string {
-    switch (item.item_type) {
-      case 'shortcut': return 'LNK-APP';
-      case 'folder': return 'DIR-FLD';
-      case 'script': return 'BAT-SCR';
-      case 'executable': return 'BIN-EXE';
-      case 'document': return 'DOC-FIL';
-      case 'image': return 'IMG-GFX';
-      default: return 'DAT-SYS';
-    }
+  private autosize() {
+    const el = this.input()?.nativeElement;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }
 
-  formatFileSize(item: DesktopItem): string {
-    if (item.item_type === 'folder') return 'FOLDER';
-    const bytes = item.size_bytes;
-    if (bytes <= 0) return '0 B';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  }
-
-  formatDate(epoch: number): string {
-    if (!epoch) return 'N/A';
-    const d = new Date(epoch * 1000);
-    const p = (n: number) => String(n).padStart(2, '0');
-    let hours = d.getHours();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(hours)}:${p(d.getMinutes())} ${ampm}`;
-  }
-
-  // --- Window Operations ---
-
-  async minimizeWindow() {
-    await this.cli.minimizeWindow();
-  }
-
-  async maximizeWindow() {
-    await this.cli.maximizeWindow();
-  }
-
-  async toggleFullscreen() {
-    await this.cli.toggleFullscreen();
-  }
-
-  async closeWindow() {
-    await this.cli.closeWindow();
-  }
-
-  async broadcastNotification() {
-    if (!this.notificationTitle.trim()) return;
-    await this.cli.sendNotification(this.notificationTitle, this.notificationBody);
-  }
-
-  filteredLogs() {
-    const filter = this.logFilter();
-    const logs = this.cli.commsLog();
-    if (filter === 'ALL') return logs;
-    return logs.filter((l) => l.category === filter);
-  }
-
-  clearNotice() {
-    this.cli.clearNotice();
-  }
-
-  // --- Helpers ---
-
-  formatUptime(sec: number): string {
-    const d = Math.floor(sec / 86400);
-    const h = Math.floor((sec % 86400) / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = Math.floor(sec % 60);
-    const p = (n: number) => String(n).padStart(2, '0');
-    if (d > 0) return `${d}D ${p(h)}H ${p(m)}M ${p(s)}S`;
-    return `${p(h)}:${p(m)}:${p(s)}`;
-  }
-
-  formatMemory(mb: number): string {
-    if (mb >= 1024) {
-      return `${(mb / 1024).toFixed(1)} GB`;
-    }
-    return `${mb} MB`;
-  }
-
-  private tick() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const dayFrac = (now.getTime() - start.getTime()) / 86400000 / 365.2425;
-    const sd = 41000 + (now.getFullYear() - 2026) * 1000 + Math.floor(dayFrac * 1000);
-    this.stardate.set(sd.toFixed(1));
-
-    const hours24 = now.getHours();
-    const hours12 = hours24 % 12 || 12;
-    const ampm = hours24 >= 12 ? 'PM' : 'AM';
-    const p = (n: number) => String(n).padStart(2, '0');
-    this.clock.set(`${p(hours12)}:${p(now.getMinutes())}:${p(now.getSeconds())} ${ampm}`);
-    this.dateFormatted.set(`${p(now.getDate())}.${p(now.getMonth() + 1)}.${now.getFullYear()}`);
-  }
-
-  ngOnDestroy() {
-    clearInterval(this.clockTimer);
+  private scrollToEnd() {
+    const el = this.scroller()?.nativeElement;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }
 }
