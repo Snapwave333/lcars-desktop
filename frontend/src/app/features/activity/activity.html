@@ -1,0 +1,36 @@
+<section class="page">
+  <div class="toolbar">
+    <div class="chip-row">
+      @for (f of filters; track f) {
+        <button type="button" class="pill sm" [class]="meta[f].color" [class.on]="filter() === f" (click)="filter.set(f)">
+          <app-icon [name]="meta[f].icon" /> {{ f }} <span class="n num">{{ log.counts()[f] }}</span>
+        </button>
+      }
+    </div>
+    <label class="field c-sky grow">
+      <app-icon name="search" />
+      <input type="text" [value]="query()" (input)="query.set($any($event.target).value)" placeholder="SEARCH RECORDS" aria-label="Search log" />
+    </label>
+    <button type="button" class="pill c-pink" (click)="log.clear()"><app-icon name="close" /> PURGE</button>
+  </div>
+
+  <div class="rule c-sky"><span>CHRONOLOGICAL RECORD</span><i></i><b class="num">{{ visible().length }}</b></div>
+
+  <ol class="entries scroll" aria-live="polite">
+    @for (e of visible(); track e.id) {
+      <li [class]="meta[e.category].color" [attr.data-level]="e.level">
+        <span class="time num">{{ clock(e.at) }}</span>
+        <span class="lvl"><app-icon [name]="levelIcon[e.level]" /></span>
+        <span class="cat">{{ e.category }}</span>
+        <span class="msg">
+          {{ e.message }}
+          @if (e.detail) {
+            <small>{{ e.detail }}</small>
+          }
+        </span>
+      </li>
+    } @empty {
+      <li class="none">NO RECORDS IN THIS CATEGORY</li>
+    }
+  </ol>
+</section>

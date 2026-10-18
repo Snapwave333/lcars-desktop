@@ -1,0 +1,71 @@
+<section class="page">
+  <div class="cols">
+    <div class="presets scroll">
+      @for (g of groups; track g.name) {
+        <div class="rule c-peri"><span>{{ g.name }}</span><i></i><b class="num">{{ g.tools.length }}</b></div>
+        <div class="grid">
+          @for (t of g.tools; track t.id) {
+            <button type="button" class="tool" [class]="t.color" (click)="launch(t)" [title]="t.path">
+              <span class="t-icon"><app-icon [name]="icon(t)" /></span>
+              <span class="t-body">
+                <span class="t-name">{{ t.name }}</span>
+                <span class="t-desc">{{ t.description }}</span>
+              </span>
+              <span class="t-code num">{{ t.code }}</span>
+            </button>
+          }
+        </div>
+      }
+    </div>
+
+    <aside class="console">
+      <div class="rule c-orange"><span>DIRECT EXECUTION</span><i></i><b>CMD</b></div>
+      <form class="runner" (submit)="$event.preventDefault(); execute()">
+        <label class="field c-orange">
+          <app-icon name="terminal" />
+          <input
+            type="text"
+            [value]="path()"
+            (input)="path.set($any($event.target).value)"
+            placeholder="EXECUTABLE, DOCUMENT OR URI"
+            aria-label="Executable"
+            spellcheck="false"
+          />
+        </label>
+        <label class="field c-peach">
+          <span class="k">ARGS</span>
+          <input
+            type="text"
+            [value]="args()"
+            (input)="args.set($any($event.target).value)"
+            placeholder='-NoExit -Command "Get-Date"'
+            aria-label="Arguments"
+            spellcheck="false"
+          />
+        </label>
+        <button type="submit" class="pill c-orange exec" [disabled]="!path().trim() || running()">
+          <app-icon name="bolt" /> {{ running() ? 'ENGAGING…' : 'EXECUTE' }}
+        </button>
+      </form>
+
+      <div class="rule c-gold"><span>EXECUTION RECORD</span><i></i><b class="num">{{ history().length }}</b></div>
+      <ol class="history scroll">
+        @for (r of history(); track r.id) {
+          <li [class.err]="!r.ok">
+            <span class="h-icon"><app-icon [name]="r.ok ? 'check_circle' : 'error'" /></span>
+            <span class="h-body">
+              <span class="h-cmd">{{ r.command }}</span>
+              <span class="h-msg">{{ r.message }}</span>
+            </span>
+            <span class="h-at num">{{ r.at }}</span>
+            <button type="button" class="h-recall" (click)="recall(r)" title="Load into console" aria-label="Load into console">
+              <app-icon name="history" />
+            </button>
+          </li>
+        } @empty {
+          <li class="none">NO COMMANDS EXECUTED THIS SESSION</li>
+        }
+      </ol>
+    </aside>
+  </div>
+</section>

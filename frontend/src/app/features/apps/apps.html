@@ -1,0 +1,84 @@
+<section class="page">
+  <div class="layout">
+    <nav class="cats" aria-label="Categories">
+      @for (cat of store.categories(); track cat.name; let first = $first; let last = $last) {
+        <button
+          type="button"
+          class="cat"
+          [class]="color(cat.name)"
+          [class.on]="store.category() === cat.name"
+          [class.first]="first"
+          [class.last]="last"
+          (click)="store.category.set(cat.name)"
+        >
+          <app-icon [name]="icon(cat.name)" />
+          <span class="cat-name">{{ cat.name }}</span>
+          <span class="cat-n num">{{ cat.count }}</span>
+        </button>
+      }
+    </nav>
+
+    <div class="main">
+      <div class="toolbar">
+        <label class="field c-peach grow">
+          <app-icon name="search" />
+          <input
+            type="text"
+            [value]="store.query()"
+            (input)="store.query.set($any($event.target).value)"
+            (keydown.enter)="launchFirst()"
+            placeholder="SEARCH APPLICATIONS · ENTER LAUNCHES FIRST MATCH"
+            aria-label="Search applications"
+          />
+          @if (store.query()) {
+            <button type="button" class="pill sm c-pink" (click)="store.query.set('')">CLEAR</button>
+          }
+        </label>
+        <button type="button" class="pill c-teal" (click)="store.load(true)" [disabled]="store.loading()">
+          <app-icon name="restart_alt" /> {{ store.loading() ? 'SCANNING…' : 'RESCAN' }}
+        </button>
+      </div>
+
+      @if (recent().length) {
+        <div class="rule c-gold"><span>RECENTLY ENGAGED</span><i></i><b>{{ recent().length }}</b></div>
+        <div class="recent">
+          @for (app of recent(); track app.id) {
+            <button type="button" class="pill sm" [class]="color(app.category)" (click)="store.launchApp(app)">
+              <app-icon [name]="icon(app.category)" /> {{ app.name }}
+            </button>
+          }
+        </div>
+      }
+
+      <div class="rule c-peach">
+        <span>{{ store.category() === 'ALL' ? 'APPLICATION REGISTRY' : store.category() }}</span><i></i><b>{{ store.visible().length }}</b>
+      </div>
+
+      <div class="grid scroll">
+        @if (store.loading() && !store.apps().length) {
+          @for (i of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; track i) {
+            <div class="tile skeleton"></div>
+          }
+        }
+        @for (app of store.visible(); track app.id) {
+          <button type="button" class="tile" [class]="color(app.category)" (click)="store.launchApp(app)" [title]="app.path">
+            <span class="t-icon"><app-icon [name]="icon(app.category)" /></span>
+            <span class="t-body">
+              <span class="t-name">{{ app.name }}</span>
+              <span class="t-meta num">{{ app.code }} · {{ app.category }}</span>
+            </span>
+            <span class="t-go"><app-icon name="play_arrow" /></span>
+          </button>
+        } @empty {
+          @if (!store.loading()) {
+            <div class="empty">
+              <app-icon name="manage_search" style="--icon-size: 48px" />
+              NO APPLICATIONS IN REGISTRY MATCH
+              <b>REFINE SEARCH OR RESCAN</b>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  </div>
+</section>

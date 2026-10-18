@@ -1,0 +1,42 @@
+<div class="scrim" (click)="closed.emit()"></div>
+<div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+  <div class="head">
+    <span class="cap"><app-icon name="search" /></span>
+    <input
+      #q
+      type="text"
+      [value]="query()"
+      (input)="setQuery(q.value)"
+      placeholder="SUBSYSTEMS, LOCATIONS, TOOLS, APPLICATIONS, ACTIONS…"
+      aria-label="Command"
+      role="combobox"
+      aria-expanded="true"
+      aria-controls="palette-list"
+    />
+    <kbd>ESC</kbd>
+  </div>
+  <ul class="list scroll" id="palette-list" #list role="listbox">
+    @for (c of results(); track c.id; let i = $index) {
+      <li
+        role="option"
+        [attr.aria-selected]="i === index()"
+        [class.sel]="i === index()"
+        [class]="c.color"
+        (mouseenter)="index.set(i)"
+        (click)="run(c)"
+      >
+        <span class="ico"><app-icon [name]="c.icon" /></span>
+        <span class="lbl">{{ c.label }}</span>
+        <span class="hint">{{ c.hint }}</span>
+        <span class="grp">{{ c.group }}</span>
+      </li>
+    } @empty {
+      <li class="none">NO MATCHING COMMANDS</li>
+    }
+  </ul>
+  <div class="foot">
+    <span><kbd>↑</kbd><kbd>↓</kbd> NAVIGATE</span>
+    <span><kbd>ENTER</kbd> EXECUTE</span>
+    <span class="count num">{{ results().length }} RESULTS</span>
+  </div>
+</div>

@@ -1,90 +1,101 @@
 # LCARS Desktop Shell
 
-A Star Trek LCARS-inspired Windows desktop environment and shell interface built with **Tauri v2**, **Rust**, and **Angular**.
+A Star Trek LCARS-inspired desktop shell for Windows, built with **Tauri v2**, **Rust** and **Angular 20**.
 
-![LCARS Desktop](lcars_final_desktop.png)
+![Files](docs/screenshots/files.png)
 
-## Overview
+| Sensor array | Red alert |
+| --- | --- |
+| ![Sensors](docs/screenshots/sensors.png) | ![Red alert](docs/screenshots/red-alert.png) |
+| ![Applications](docs/screenshots/apps.png) | ![Command palette](docs/screenshots/command-palette.png) |
 
-LCARS Desktop provides an authentic Library Computer Access and Retrieval System (LCARS) shell experience for Windows. It combines a high-performance Rust backend with a reactive Angular frontend, providing desktop system integration, IPC named pipes, CLI control, system monitoring, and customizable LCARS panels.
+## ✨ Features
 
-## Key Features
+- **Authentic LCARS frame**: double-elbow layout, data cascade, segmented bars, Antonio typeface (bundled offline) and Material Symbols Rounded icons.
+- **Four palettes**: Next Generation, Voyager, Nemesis Blue and Lower Decks. Yellow, red and blue alert conditions recolor the whole frame.
+- **File systems**: list and grid views, breadcrumbs, back/forward/up history, kind filters, sorting, hidden-file toggle, a details panel and full keyboard control.
+- **Applications**: Start Menu and Desktop shortcuts are cataloged and cached, with categories, search and recent launches.
+- **Sensor array**: live CPU, memory and storage gauges, a rolling load chart and level racks, all driven by real Win32 telemetry.
+- **Engineering**: one-click Windows tools plus a direct execution console with quote-aware arguments and history.
+- **Configuration**: themes, alert conditions, start with Windows, Winlogon shell replacement (with a confirm step) and notification broadcast.
+- **Command palette** (`Ctrl+K` or `/`): fuzzy search across subsystems, locations, tools, apps, alerts and themes.
+- **CLI and daemon**: the same executable controls a running shell over a named pipe.
 
-- **Authentic LCARS Interface**: Faithfully recreated LCARS design system with responsive SVG/CSS styling, sound effects, and color themes (Standard, Red Alert, Silent).
-- **Daemon & CLI Control**: Built-in CLI client communicating over Windows Named Pipes (`lcars-shell hide`, `lcars-shell show`, `lcars-shell alert --mode red`, `lcars-shell notify`, etc.).
-- **Windows Integration**:
-  - System tray and taskbar management
-  - Wallpaper detection and integration
-  - Windows Run / Startup integration
-  - Multi-monitor awareness
-- **Modular Panels**:
-  - System diagnostics and stats
-  - Communications / Notifications
-  - Audio and environment controls
-  - Application launcher and custom functions
+## 🏗️ Architecture
 
-## Architecture
+```
+src-tauri/src
+├── main.rs            entry: CLI client or GUI daemon
+├── cli.rs             named-pipe client (`lcars-shell <command>`)
+├── ipc/
+│   ├── handlers.rs    single command router shared by the pipe and the webview
+│   ├── commands.rs    async Tauri commands (run off the UI thread)
+│   ├── protocol.rs    newline-delimited JSON request/response
+│   └── server.rs      \\.\pipe\lcars_cli server
+└── platform/          OS integration, no Tauri dependency
+    ├── fs.rs          typed directory listings and quick locations
+    ├── apps.rs        Start Menu scan with category table and cache
+    ├── telemetry.rs   CPU (GetSystemTimes), memory, disk, uptime, wallpaper
+    ├── shell.rs       ShellExecuteExW open/launch, Explorer reveal, autostart, Winlogon
+    ├── registry.rs    RegGetValueW / RegSetKeyValueW helpers
+    └── window.rs      foregrounding and PrintWindow capture
 
-- **Backend (`src-tauri/`)**: Rust 2021 + Tauri v2, Tokio async runtime, Named Pipes IPC server, Clap CLI parser, Windows API bindings.
-- **Frontend (`frontend/`)**: Angular 20, TypeScript, Tailwind/SCSS styling, RxJS state management.
-
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) (v18+) and npm
-- [Rust](https://www.rust-lang.org/) (stable)
-- Windows 10/11 with C++ Build Tools installed
-
-## Building & Running
-
-### Automated Pipeline
-Run the full verification and build pipeline via PowerShell:
-
-```powershell
-.\pipeline.ps1
+frontend/src/app
+├── core/              backend abstraction and signal stores
+│   ├── backend.ts     Backend interface + BACKEND token
+│   ├── tauri-backend.ts / demo-backend.ts
+│   ├── system.store.ts, files.store.ts, apps.store.ts, log.store.ts, settings.store.ts
+│   └── format.ts      pure formatting and path helpers
+├── layout/            data cascade, toasts, command palette
+├── shared/            icon, gauge, trend chart
+└── features/          lazily loaded routes: files, apps, sensors, tools, config, activity
 ```
 
-For release build with tests:
+The frontend is zoneless, uses OnPush and signals throughout, and lazy-loads each subsystem. Opening it in a plain browser (`npm start`) uses the **demo backend** with a simulated starship, so the UI can be developed and tested without Windows or Tauri.
+
+## 🚀 Building
+
+Prerequisites: Node.js 22+, Rust stable, and Windows 10/11 with the C++ build tools.
+
 ```powershell
+.\pipeline.ps1            # build frontend + backend, CLI smoke test
 .\pipeline.ps1 -Release -Tests
 ```
 
-### Manual Development
+Manual:
 
-1. **Frontend**:
-   ```bash
-   cd frontend
-   npm install
-   npm run start
-   ```
+```bash
+cd frontend && npm ci && npm start      # UI with demo data at http://localhost:4200
+cd src-tauri && cargo run               # full desktop shell (Windows)
+```
 
-2. **Tauri App**:
-   ```bash
-   cd src-tauri
-   cargo build
-   cargo run
-   ```
+## 🧪 Testing
 
-## CLI Usage
+```bash
+cd frontend
+npm test            # Karma unit/integration tests (ChromeHeadlessCI)
+npm run e2e         # Playwright end-to-end tests against the demo backend
+cd ../src-tauri
+cargo test          # Rust unit tests
+```
 
-The executable acts as both the shell daemon and the command-line control tool:
+Icons are generated from `@material-symbols/svg-400`; add a name to `scripts/icons.mjs` and run `npm run icons`.
+
+## ⌨️ CLI
 
 ```powershell
-# Toggle visibility
+lcars-shell help
 lcars-shell toggle
-
-# Trigger alert modes
-lcars-shell alert --mode red
-lcars-shell alert --mode yellow
-lcars-shell alert --mode normal
-
-# Send notification
+lcars-shell alert --mode red          # red | yellow | blue | normal
 lcars-shell notify --title "INCOMING TRANSMISSION" --body "Message from Starfleet Command"
-
-# Daemon status & diagnostics
+lcars-shell ls --path C:\Users
+lcars-shell launch --path wt.exe
+lcars-shell auto-start --enable true
 lcars-shell status
-lcars-shell info
 ```
+
+Exit codes: `0` success, `1` command failed, `2` daemon unreachable.
 
 ## License
 
-MIT / Proprietary (Configure as needed)
+MIT

@@ -1,0 +1,122 @@
+:host {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.page {
+  gap: 22px;
+  padding-right: 6px;
+}
+
+.top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.gauges {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  max-width: 760px;
+}
+
+.specs {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.kv dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  --icon-size: 16px;
+}
+
+.bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  gap: 28px;
+  flex: 1;
+  min-height: 280px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+.trend app-trend-chart {
+  flex: 1;
+}
+
+.racks {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+}
+
+.rack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  max-width: 64px;
+  min-height: 0;
+}
+
+.cells {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 3px;
+  flex: 1;
+  width: 100%;
+  min-height: 140px;
+}
+
+.cells span {
+  flex: 1;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--c) 13%, #000);
+  transition: background-color 0.35s ease;
+}
+
+.cells span.on {
+  background: var(--c);
+}
+
+.cells span:last-child {
+  border-radius: 999px 999px 2px 2px;
+}
+
+.cells span:first-child {
+  border-radius: 2px 2px 999px 999px;
+}
+
+.r-val {
+  color: var(--lc-text);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.r-label {
+  color: var(--c);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+@media (max-width: 1280px) {
+  .top,
+  .bottom {
+    grid-template-columns: 1fr;
+  }
+}

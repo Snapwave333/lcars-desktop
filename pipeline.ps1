@@ -50,7 +50,8 @@ function Test-All {
   cargo test --manifest-path "$tauriDir\Cargo.toml"
   Push-Location $frontendDir
   try {
-    npm test -- --watch=false --browsers=ChromeHeadless
+    npm test
+    npm run e2e
   } finally {
     Pop-Location
   }
@@ -67,7 +68,7 @@ function Test-Cli {
     throw "binary not found: $bin"
   }
 
-  $args = @("hide", "show", "toggle", "alert --mode red", "notify --title LCARS --body pipeline", "info", "ping", "bogus")
+  $args = @("hide", "show", "toggle", "alert --mode red", "alert --mode normal", "notify --title LCARS --body pipeline", "info", "apps", "ls --path C:\", "ping", "bogus")
   Start-Process -FilePath $bin -WindowStyle Hidden
   try {
     for ($i = 0; $i -lt 15; $i++) {

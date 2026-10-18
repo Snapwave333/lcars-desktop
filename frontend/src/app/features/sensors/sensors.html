@@ -1,0 +1,53 @@
+<section class="page scroll">
+  <div class="top">
+    <div class="gauges">
+      <app-gauge class="c-orange" [value]="t().cpu_load_percent" label="PROCESSOR" />
+      <app-gauge class="c-sky" [value]="t().memory_load_percent" label="MEMORY" />
+      <app-gauge class="c-lavender" [value]="system.diskUsedPercent()" label="STORAGE" />
+    </div>
+
+    <aside class="specs">
+      <div class="rule c-peach"><span>VESSEL REGISTRY</span><i></i><b>{{ system.online() ? 'LIVE' : 'STALE' }}</b></div>
+      <dl class="kv c-peach">
+        <dt><app-icon name="desktop_windows" /> HOST</dt>
+        <dd>{{ t().hostname }}</dd>
+        <dt><app-icon name="person" /> OFFICER</dt>
+        <dd>{{ t().username }}</dd>
+        <dt><app-icon name="deployed_code" /> SYSTEM</dt>
+        <dd>{{ t().os }} · {{ t().arch }}</dd>
+        <dt><app-icon name="developer_board" /> CORES</dt>
+        <dd class="num">{{ t().cpu_cores }} LOGICAL</dd>
+        <dt><app-icon name="memory" /> MEMORY</dt>
+        <dd class="num">{{ formatMegabytes(t().available_memory_mb) }} FREE / {{ formatMegabytes(t().total_memory_mb) }}</dd>
+        <dt><app-icon name="hard_drive" /> STORAGE</dt>
+        <dd class="num">{{ t().disk_free_gb }} GB FREE / {{ t().disk_total_gb }} GB</dd>
+        <dt><app-icon name="timer" /> UPTIME</dt>
+        <dd class="num">{{ formatUptime(t().uptime_seconds) }}</dd>
+      </dl>
+    </aside>
+  </div>
+
+  <div class="bottom">
+    <div class="panel trend">
+      <div class="rule c-orange"><span>LOAD TELEMETRY</span><i></i><b class="num">{{ system.cpuHistory().length }}</b></div>
+      <app-trend-chart [series]="series()" />
+    </div>
+
+    <div class="panel racks-panel">
+      <div class="rule c-lavender"><span>LEVEL RACKS</span><i></i><b>05</b></div>
+      <div class="racks">
+        @for (r of racks(); track r.label) {
+          <div class="rack" [class]="r.color">
+            <div class="cells">
+              @for (c of cells; track c) {
+                <span [class.on]="c < r.lit"></span>
+              }
+            </div>
+            <span class="r-val num">{{ r.value | number: '1.0-0' }}</span>
+            <span class="r-label">{{ r.label }}</span>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</section>

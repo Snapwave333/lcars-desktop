@@ -1,0 +1,223 @@
+<section class="page">
+  <div class="toolbar">
+    <div class="navs">
+      <button type="button" class="pill left c-peach icon-btn" [disabled]="!fs.back().length" (click)="fs.goBack()" title="Back" aria-label="Back">
+        <app-icon name="arrow_back" />
+      </button>
+      <button type="button" class="pill square c-peach icon-btn" [disabled]="!fs.forward().length" (click)="fs.goForward()" title="Forward" aria-label="Forward">
+        <app-icon name="arrow_forward" />
+      </button>
+      <button type="button" class="pill square c-gold icon-btn" [disabled]="!fs.path()" (click)="fs.goUp()" title="Up (Backspace)" aria-label="Up">
+        <app-icon name="arrow_upward" />
+      </button>
+      <button type="button" class="pill right c-teal icon-btn" (click)="fs.refresh()" title="Refresh" aria-label="Refresh" [class.spin]="fs.loading()">
+        <app-icon name="refresh" />
+      </button>
+    </div>
+
+    <nav class="crumbs" aria-label="Path">
+      @for (c of fs.crumbs(); track c.path; let last = $last; let first = $first) {
+        <button
+          type="button"
+          class="crumb"
+          [class.first]="first"
+          [class.last]="last"
+          [attr.aria-current]="last ? 'location' : null"
+          (click)="fs.navigate(c.path)"
+        >
+          @if (first) {
+            <app-icon name="home" />
+          }
+          {{ c.label }}
+        </button>
+      }
+    </nav>
+
+    <div class="seg-toggle" role="group" aria-label="View">
+      <button type="button" class="pill left sm c-sky" [class.on]="settings.view() === 'list'" (click)="settings.view.set('list')" aria-label="List view">
+        <app-icon name="list" />
+      </button>
+      <button type="button" class="pill right sm c-sky" [class.on]="settings.view() === 'grid'" (click)="settings.view.set('grid')" aria-label="Grid view">
+        <app-icon name="grid_view" />
+      </button>
+    </div>
+    <button
+      type="button"
+      class="pill sm c-lavender"
+      [class.on]="settings.showHidden()"
+      (click)="settings.showHidden.set(!settings.showHidden())"
+      title="Show hidden and system items"
+    >
+      <app-icon [name]="settings.showHidden() ? 'visibility' : 'visibility_off'" /> HIDDEN
+    </button>
+  </div>
+
+  <div class="toolbar">
+    <label class="field c-gold grow">
+      <app-icon name="search" class="k" />
+      <input
+        type="text"
+        [value]="fs.query()"
+        (input)="fs.query.set($any($event.target).value)"
+        placeholder="FILTER THIS DIRECTORY"
+        aria-label="Filter"
+      />
+      @if (fs.query()) {
+        <button type="button" class="pill sm c-pink" (click)="fs.query.set('')">CLEAR</button>
+      }
+    </label>
+    <form class="field c-peri grow path-field" (submit)="$event.preventDefault(); submitPath()">
+      <span class="k">PATH</span>
+      <input
+        type="text"
+        [value]="fs.path()"
+        (input)="pathDraft.set($any($event.target).value)"
+        (focus)="pathDraft.set(fs.path())"
+        placeholder="C:\USERS\…  ·  EMPTY FOR DESKTOP"
+        aria-label="Directory path"
+        spellcheck="false"
+      />
+      <button type="submit" class="pill sm c-orange">ENGAGE</button>
+    </form>
+  </div>
+
+  <div class="chip-row">
+    @for (c of chips(); track c.kind) {
+      <button type="button" class="pill sm" [class]="c.color" [class.on]="fs.kind() === c.kind" (click)="fs.kind.set(c.kind)">
+        <app-icon [name]="c.icon" /> {{ c.label }} <span class="n num">{{ c.count }}</span>
+      </button>
+    }
+  </div>
+
+  <div class="split">
+    <div class="list-wrap">
+      @if (fs.error(); as err) {
+        <div class="error">
+          <app-icon name="error" />
+          <div>
+            <b>ACCESS DENIED</b>
+            <span>{{ err }}</span>
+          </div>
+          <button type="button" class="pill sm c-peach" (click)="fs.goUp()">RETURN</button>
+        </div>
+      }
+
+      @if (settings.view() === 'list') {
+        <div class="thead" role="row">
+          <span></span>
+          @for (col of columns; track col.key) {
+            <button
+              type="button"
+              class="th"
+              [class.active]="fs.sortKey() === col.key"
+              (click)="fs.setSort(col.key)"
+              [attr.aria-sort]="fs.sortKey() === col.key ? (fs.sortAsc() ? 'ascending' : 'descending') : null"
+            >
+              {{ col.label }}
+              @if (fs.sortKey() === col.key) {
+                <app-icon [name]="fs.sortAsc() ? 'arrow_upward' : 'arrow_downward'" />
+              }
+            </button>
+          }
+        </div>
+      }
+
+      <div
+        #list
+        class="list scroll"
+        [class.grid]="settings.view() === 'grid'"
+        [class.dim]="fs.loading()"
+        tabindex="0"
+        role="listbox"
+        aria-label="Directory contents"
+        (keydown)="onListKey($event)"
+      >
+        @for (item of fs.visible(); track item.path) {
+          @if (settings.view() === 'list') {
+            <div
+              class="row"
+              role="option"
+              [class]="meta[item.item_type].color"
+              [class.sel]="isSelected(item)"
+              [class.hidden]="item.hidden"
+              [attr.aria-selected]="isSelected(item)"
+              (click)="select(item)"
+              (dblclick)="fs.activate(item)"
+            >
+              <span class="kind"><app-icon [name]="icons[item.item_type]" /></span>
+              <span class="name">{{ item.name }}</span>
+              <span class="type">{{ item.extension ? '.' + item.extension : meta[item.item_type].code }}</span>
+              <span class="size num">{{ item.item_type === 'folder' ? '—' : formatBytes(item.size_bytes) }}</span>
+              <span class="date num">{{ formatEpoch(item.modified_epoch) }}</span>
+            </div>
+          } @else {
+            <div
+              class="tile"
+              role="option"
+              [class]="meta[item.item_type].color"
+              [class.sel]="isSelected(item)"
+              [class.hidden]="item.hidden"
+              [attr.aria-selected]="isSelected(item)"
+              (click)="select(item)"
+              (dblclick)="fs.activate(item)"
+              [title]="item.path"
+            >
+              <span class="t-icon"><app-icon [name]="icons[item.item_type]" /></span>
+              <span class="t-name">{{ item.name }}</span>
+              <span class="t-meta num">{{ item.item_type === 'folder' ? 'DIRECTORY' : (item.extension || meta[item.item_type].code) + ' · ' + formatBytes(item.size_bytes) }}</span>
+            </div>
+          }
+        } @empty {
+          @if (!fs.loading() && !fs.error()) {
+            <div class="empty">
+              <app-icon name="manage_search" style="--icon-size: 48px" />
+              NO OBJECTS MATCH SENSOR SWEEP
+              <b>ADJUST FILTER PARAMETERS</b>
+            </div>
+          }
+        }
+      </div>
+
+      <div class="status num">
+        <span><b>{{ totals().count }}</b> OBJECTS</span>
+        <span><b>{{ totals().folders }}</b> FOLDERS</span>
+        <span><b>{{ totals().files }}</b> FILES</span>
+        <span><b>{{ formatBytes(totals().bytes) }}</b> TOTAL</span>
+        @if (fs.truncated()) {
+          <span class="warn">LISTING TRUNCATED</span>
+        }
+        <span class="keys">↑↓ SELECT · ENTER OPEN · BACKSPACE UP</span>
+      </div>
+    </div>
+
+    @if (fs.selected(); as sel) {
+      <aside class="detail" [class]="meta[sel.item_type].color" aria-label="Item details">
+        <div class="d-head">
+          <span class="d-icon"><app-icon [name]="icons[sel.item_type]" /></span>
+          <button type="button" class="x" (click)="fs.selected.set(null)" aria-label="Close details"><app-icon name="close" /></button>
+        </div>
+        <h2>{{ sel.name }}</h2>
+        <dl class="kv">
+          <dt>CLASS</dt>
+          <dd>{{ meta[sel.item_type].label }}</dd>
+          <dt>FILE</dt>
+          <dd>{{ sel.filename }}</dd>
+          <dt>MASS</dt>
+          <dd class="num">{{ sel.item_type === 'folder' ? '—' : formatBytes(sel.size_bytes) }}</dd>
+          <dt>MODIFIED</dt>
+          <dd class="num">{{ formatEpoch(sel.modified_epoch) }}</dd>
+          <dt>PATH</dt>
+          <dd class="path">{{ sel.path }}</dd>
+        </dl>
+        <div class="d-actions">
+          <button type="button" class="pill c-orange" (click)="fs.activate(sel)">
+            <app-icon [name]="sel.item_type === 'folder' ? 'folder_open' : 'open_in_new'" />
+            {{ sel.item_type === 'folder' ? 'ENTER' : 'OPEN' }}
+          </button>
+          <button type="button" class="pill c-gold" (click)="fs.reveal(sel.path)"><app-icon name="desktop_windows" /> REVEAL IN EXPLORER</button>
+          <button type="button" class="pill c-teal" (click)="copy(sel.path)"><app-icon name="content_copy" /> COPY PATH</button>
+        </div>
+      </aside>
+    }
+  </div>
+</section>

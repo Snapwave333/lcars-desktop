@@ -1,0 +1,96 @@
+<section class="page scroll">
+  <div class="rule c-gold"><span>VISUAL CONFIGURATION</span><i></i><b>{{ settings.theme() | uppercase }}</b></div>
+  <div class="themes">
+    @for (t of themes; track t.id) {
+      <button
+        type="button"
+        class="theme"
+        [class.on]="settings.theme() === t.id"
+        (click)="settings.theme.set(t.id)"
+        [attr.aria-pressed]="settings.theme() === t.id"
+      >
+        <span class="sw">
+          @for (c of t.swatch; track $index) {
+            <i [style.background]="c"></i>
+          }
+        </span>
+        <span class="th-name">{{ t.name }}</span>
+        <span class="th-era num">ERA {{ t.era }}</span>
+        @if (settings.theme() === t.id) {
+          <span class="th-on"><app-icon name="check_circle" /></span>
+        }
+      </button>
+    }
+  </div>
+
+  <div class="cards">
+
+    <article class="card c-red">
+      <header><app-icon name="warning" /> ALERT CONDITION</header>
+      <p>Shifts the entire frame palette. Also controllable via <code>lcars-shell alert --mode red</code>.</p>
+      <div class="row">
+        @for (a of alerts; track a.mode) {
+          <button type="button" class="pill" [class]="a.color" [class.on]="system.alert() === a.mode" (click)="system.setAlert(a.mode)">
+            {{ a.label }}
+          </button>
+        }
+      </div>
+    </article>
+
+    <article class="card c-teal">
+      <header><app-icon name="power_settings_new" /> START WITH WINDOWS</header>
+      <p>Registers LCARS Shell under the current user's Run key.</p>
+      <div class="row">
+        <span class="status" [class.ok]="system.shellStatus().autostart_enabled">
+          {{ system.shellStatus().autostart_enabled ? 'ENGAGED' : 'DISENGAGED' }}
+        </span>
+        <button type="button" class="pill c-teal" (click)="system.setAutoStart(!system.shellStatus().autostart_enabled)">
+          {{ system.shellStatus().autostart_enabled ? 'DISABLE' : 'ENABLE' }}
+        </button>
+      </div>
+    </article>
+
+    <article class="card c-orange">
+      <header><app-icon name="swap_horiz" /> LOGIN SHELL</header>
+      <p>Replaces Explorer as the Winlogon shell for this user. Takes effect at next sign-in.</p>
+      <dl class="kv c-orange">
+        <dt>CURRENT</dt>
+        <dd class="mono">{{ system.shellStatus().current_shell || 'explorer.exe' }}</dd>
+      </dl>
+      <div class="row">
+        <button type="button" class="pill" [class]="armed() ? 'c-red' : 'c-orange'" [class.flash]="armed()" (click)="setLcarsShell()" [disabled]="system.shellStatus().lcars_shell_active">
+          <app-icon name="rocket_launch" /> {{ armed() ? 'CONFIRM — REPLACE EXPLORER' : 'SET LCARS AS SHELL' }}
+        </button>
+        <button type="button" class="pill c-sky" (click)="system.setShell('explorer')" [disabled]="!system.shellStatus().lcars_shell_active">
+          RESTORE EXPLORER
+        </button>
+      </div>
+    </article>
+
+    <article class="card c-sky">
+      <header><app-icon name="campaign" /> SUBSPACE BROADCAST</header>
+      <p>Send a notification through the daemon, exactly as <code>lcars-shell notify</code> does.</p>
+      <form class="stack" (submit)="$event.preventDefault(); broadcast()">
+        <label class="field c-sky">
+          <span class="k">TITLE</span>
+          <input type="text" [value]="title()" (input)="title.set($any($event.target).value)" aria-label="Title" />
+        </label>
+        <label class="field c-sky">
+          <span class="k">BODY</span>
+          <input type="text" [value]="body()" (input)="body.set($any($event.target).value)" aria-label="Body" />
+        </label>
+        <button type="submit" class="pill c-sky" [disabled]="!title().trim()"><app-icon name="notifications" /> TRANSMIT</button>
+      </form>
+    </article>
+
+    <article class="card c-lavender">
+      <header><app-icon name="keyboard" /> CONSOLE SHORTCUTS</header>
+      <dl class="kv c-lavender keys">
+        @for (s of shortcuts; track s.action) {
+          <dt><kbd>{{ s.keys }}</kbd></dt>
+          <dd>{{ s.action }}</dd>
+        }
+      </dl>
+    </article>
+  </div>
+</section>
