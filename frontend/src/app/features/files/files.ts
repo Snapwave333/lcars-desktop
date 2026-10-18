@@ -13,7 +13,7 @@ export const KIND_ICON: Record<ItemKind, IconName> = {
   shortcut: 'link',
   document: 'description',
   image: 'image',
-  script: 'terminal',
+  script: 'code_blocks',
   executable: 'deployed_code',
   file: 'draft',
 };
@@ -62,9 +62,9 @@ export class FilesPage {
   });
 
   protected readonly columns: { key: SortKey; label: string }[] = [
-    { key: 'name', label: 'DESIGNATION' },
+    { key: 'name', label: 'NAME' },
     { key: 'type', label: 'TYPE' },
-    { key: 'size', label: 'MASS' },
+    { key: 'size', label: 'SIZE' },
     { key: 'modified', label: 'MODIFIED' },
   ];
 

@@ -2,9 +2,8 @@ import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, comput
 import { Router } from '@angular/router';
 
 import { NAV } from '../app.routes';
-import { AppsStore, TOOLS } from '../core/apps.store';
+import { AppsStore, CATEGORY_ICON, TOOLS } from '../core/apps.store';
 import { FilesStore } from '../core/files.store';
-import { SettingsStore, THEMES } from '../core/settings.store';
 import { SystemStore } from '../core/system.store';
 import { Icon } from '../shared/icon';
 import type { IconName } from '../shared/icon-data';
@@ -45,7 +44,6 @@ export class CommandPalette {
   private readonly apps = inject(AppsStore);
   private readonly files = inject(FilesStore);
   private readonly system = inject(SystemStore);
-  private readonly settings = inject(SettingsStore);
   private readonly input = viewChild.required<ElementRef<HTMLInputElement>>('q');
   private readonly list = viewChild<ElementRef<HTMLElement>>('list');
 
@@ -79,7 +77,7 @@ export class CommandPalette {
       group: 'TOOL',
       label: t.name,
       hint: t.path,
-      icon: (t.group === 'TERMINAL' ? 'terminal' : t.group === 'MANAGEMENT' ? 'settings' : 'build') as IconName,
+      icon: (t.group === 'TERMINAL' ? 'terminal' : t.group === 'MANAGEMENT' ? 'settings' : 'handyman') as IconName,
       color: t.color,
       run: () => this.apps.run(t.path, t.args ?? [], t.name),
     })),
@@ -88,22 +86,13 @@ export class CommandPalette {
       group: 'APPLICATION',
       label: a.name.toUpperCase(),
       hint: a.category,
-      icon: 'rocket_launch' as IconName,
+      icon: CATEGORY_ICON[a.category] ?? ('apps' as IconName),
       color: a.color,
       run: () => this.apps.launchApp(a),
     })),
-    { id: 'alert-red', group: 'ACTION', label: 'RED ALERT', hint: 'ALERT', icon: 'warning', color: 'c-red', run: () => this.system.setAlert('red') },
+    { id: 'alert-red', group: 'ACTION', label: 'RED ALERT', hint: 'ALERT', icon: 'thunderstorm', color: 'c-red', run: () => this.system.setAlert('red') },
     { id: 'alert-yellow', group: 'ACTION', label: 'YELLOW ALERT', hint: 'ALERT', icon: 'warning', color: 'c-gold', run: () => this.system.setAlert('yellow') },
     { id: 'alert-none', group: 'ACTION', label: 'STAND DOWN', hint: 'ALERT', icon: 'shield', color: 'c-teal', run: () => this.system.setAlert('none') },
-    ...THEMES.map((t) => ({
-      id: `theme-${t.id}`,
-      group: 'THEME',
-      label: `THEME ${t.name}`,
-      hint: t.era,
-      icon: 'palette' as IconName,
-      color: 'c-lavender',
-      run: () => this.settings.theme.set(t.id),
-    })),
   ]);
 
   protected readonly results = computed(() => {

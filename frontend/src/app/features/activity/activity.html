@@ -7,14 +7,14 @@
         </button>
       }
     </div>
-    <label class="field c-sky grow">
+    <label class="field c-teal grow">
       <app-icon name="search" />
       <input type="text" [value]="query()" (input)="query.set($any($event.target).value)" placeholder="SEARCH RECORDS" aria-label="Search log" />
     </label>
-    <button type="button" class="pill c-pink" (click)="log.clear()"><app-icon name="close" /> PURGE</button>
+    <button type="button" class="pill c-pink" (click)="log.clear()"><app-icon name="close" /> CLEAR</button>
   </div>
 
-  <div class="rule c-sky"><span>CHRONOLOGICAL RECORD</span><i></i><b class="num">{{ visible().length }}</b></div>
+  <div class="rule c-teal"><span><app-icon name="event_note" /> EVENTS</span><i></i><b class="num">{{ visible().length }}</b></div>
 
   <ol class="entries scroll" aria-live="polite">
     @for (e of visible(); track e.id) {

@@ -13,6 +13,7 @@ import { CommandPalette } from './layout/command-palette';
 import { DataCascade } from './layout/data-cascade';
 import { Toasts } from './layout/toasts';
 import { Icon } from './shared/icon';
+import type { IconName } from './shared/icon-data';
 
 @Component({
   selector: 'app-root',
@@ -21,7 +22,6 @@ import { Icon } from './shared/icon';
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    '[attr.data-theme]': 'settings.theme()',
     '[attr.data-alert]': 'system.alert()',
     '(window:keydown)': 'onKey($event)',
   },
@@ -35,6 +35,7 @@ export class App {
   private readonly route = inject(ActivatedRoute);
 
   protected readonly nav = NAV;
+  protected readonly tally = ['|·', '||', '||·', '|||', '|||·', '||||'];
   protected readonly now = signal(new Date());
   protected readonly clock = computed(() => formatClock(this.now()));
   protected readonly stardate = computed(() => stardate(this.now()));
@@ -51,6 +52,30 @@ export class App {
     ),
     { initialValue: NAV[0] },
   );
+
+  protected readonly alertIcon = computed<IconName>(() => {
+    switch (this.system.alert()) {
+      case 'red':
+        return 'thunderstorm';
+      case 'yellow':
+        return 'warning';
+      case 'blue':
+        return 'water_drop';
+      default:
+        return 'shield';
+    }
+  });
+
+  private readonly locationIcons: Record<string, IconName> = {
+    desktop: 'desktop_windows',
+    downloads: 'download',
+    documents: 'description',
+    pictures: 'photo_library',
+    music: 'music_note',
+    videos: 'movie',
+    userhome: 'home',
+    rootdrive: 'hard_drive',
+  };
 
   protected readonly alertLabel = computed(() => {
     switch (this.system.alert()) {
@@ -93,6 +118,10 @@ export class App {
       e.preventDefault();
       void this.system.windowAction('fullscreen');
     }
+  }
+
+  protected locIcon(id: string): IconName {
+    return this.locationIcons[id] ?? 'folder';
   }
 
   protected openLocation(path: string) {

@@ -30,7 +30,7 @@ test('filters the listing', async ({ page }) => {
 });
 
 test('navigates every subsystem by number key', async ({ page }) => {
-  const titles = ['FILE SYSTEMS', 'APPLICATIONS', 'SENSOR ARRAY', 'ENGINEERING', 'CONFIGURATION', 'ACTIVITY LOG'];
+  const titles = ['FILE SYSTEMS', 'APPLICATIONS', 'SENSOR ARRAY', 'SYSTEM TOOLS', 'CONFIGURATION', 'ACTIVITY LOG'];
   for (const [i, title] of titles.entries()) {
     await page.keyboard.press(String(i + 1));
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
@@ -52,13 +52,12 @@ test('command palette launches a tool and records it', async ({ page }) => {
   await page.keyboard.press('Enter');
   await expect(page.locator('app-command-palette')).toHaveCount(0);
   await page.keyboard.press('6');
-  await expect(page.locator('.entries')).toContainText('POWERSHELL engaged');
+  await expect(page.locator('.entries')).toContainText('POWERSHELL started');
 });
 
-test('theme selection persists across reloads', async ({ page }) => {
-  await page.keyboard.press('5');
-  await page.getByRole('button', { name: /NEMESIS BLUE/ }).click();
-  await expect(page.locator('app-root')).toHaveAttribute('data-theme', 'nemesis');
+test('view mode persists across reloads', async ({ page }) => {
+  await page.getByRole('button', { name: 'Grid view' }).click();
+  await expect(page.locator('.tile').first()).toBeVisible();
   await page.reload();
-  await expect(page.locator('app-root')).toHaveAttribute('data-theme', 'nemesis');
+  await expect(page.locator('.tile').first()).toBeVisible();
 });

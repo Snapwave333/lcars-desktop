@@ -40,7 +40,7 @@
       </div>
 
       @if (recent().length) {
-        <div class="rule c-gold"><span>RECENTLY ENGAGED</span><i></i><b>{{ recent().length }}</b></div>
+        <div class="rule c-gold"><span><app-icon name="history" /> RECENT</span><i></i><b>{{ recent().length }}</b></div>
         <div class="recent">
           @for (app of recent(); track app.id) {
             <button type="button" class="pill sm" [class]="color(app.category)" (click)="store.launchApp(app)">
@@ -51,7 +51,7 @@
       }
 
       <div class="rule c-peach">
-        <span>{{ store.category() === 'ALL' ? 'APPLICATION REGISTRY' : store.category() }}</span><i></i><b>{{ store.visible().length }}</b>
+        <span><app-icon [name]="icon(store.category())" /> {{ store.category() === 'ALL' ? 'ALL APPLICATIONS' : store.category() }}</span><i></i><b>{{ store.visible().length }}</b>
       </div>
 
       <div class="grid scroll">
@@ -62,7 +62,7 @@
         }
         @for (app of store.visible(); track app.id) {
           <button type="button" class="tile" [class]="color(app.category)" (click)="store.launchApp(app)" [title]="app.path">
-            <span class="t-icon"><app-icon [name]="icon(app.category)" /></span>
+            <span class="t-icon ring"><app-icon [name]="icon(app.category)" /></span>
             <span class="t-body">
               <span class="t-name">{{ app.name }}</span>
               <span class="t-meta num">{{ app.code }} · {{ app.category }}</span>
@@ -73,8 +73,8 @@
           @if (!store.loading()) {
             <div class="empty">
               <app-icon name="manage_search" style="--icon-size: 48px" />
-              NO APPLICATIONS IN REGISTRY MATCH
-              <b>REFINE SEARCH OR RESCAN</b>
+              NO APPLICATIONS MATCH
+              <b>CHANGE THE SEARCH OR RESCAN</b>
             </div>
           }
         }

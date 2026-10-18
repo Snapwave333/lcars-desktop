@@ -1,6 +1,10 @@
 # LCARS Desktop Shell
 
+<img src="docs/brand/app-icon.png" width="96" align="right" alt="">
+
 A Star Trek LCARS-inspired desktop shell for Windows, built with **Tauri v2**, **Rust** and **Angular 20**.
+
+The visual theme is **LCARS Remnant**: the console three hundred years after the Fleet went silent, rebuilt from hull plate, rivets and copper by the people who stayed behind. The LCARS layout and every standard Windows name are kept; only the surface has aged.
 
 ![Files](docs/screenshots/files.png)
 
@@ -11,14 +15,15 @@ A Star Trek LCARS-inspired desktop shell for Windows, built with **Tauri v2**, *
 
 ## ✨ Features
 
-- **Authentic LCARS frame**: double-elbow layout, data cascade, segmented bars, Antonio typeface (bundled offline) and Material Symbols Rounded icons.
-- **Four palettes**: Next Generation, Voyager, Nemesis Blue and Lower Decks. Yellow, red and blue alert conditions recolor the whole frame.
+- **LCARS Remnant theme**: double-elbow frame with woven elbows, riveted rail blocks, notched buttons, stacked-stone meters and a tally-mark data cascade. Ember, ochre, bone, patina, lichen and rust on a burnt-hull ground.
+- **Icons and type**: Material Symbols Rounded throughout, a custom app icon (`docs/brand/app-icon.svg`), and Saira Stencil One, Antonio and Share Tech Mono bundled offline.
+- **Alert conditions**: yellow, red and blue alerts recolor the whole frame.
 - **File systems**: list and grid views, breadcrumbs, back/forward/up history, kind filters, sorting, hidden-file toggle, a details panel and full keyboard control.
 - **Applications**: Start Menu and Desktop shortcuts are cataloged and cached, with categories, search and recent launches.
-- **Sensor array**: live CPU, memory and storage gauges, a rolling load chart and level racks, all driven by real Win32 telemetry.
+- **Sensor array**: live CPU, memory and storage totems, a rolling load chart and level meters, all driven by real Win32 telemetry.
 - **Engineering**: one-click Windows tools plus a direct execution console with quote-aware arguments and history.
-- **Configuration**: themes, alert conditions, start with Windows, Winlogon shell replacement (with a confirm step) and notification broadcast.
-- **Command palette** (`Ctrl+K` or `/`): fuzzy search across subsystems, locations, tools, apps, alerts and themes.
+- **Configuration**: alert conditions, start with Windows, Winlogon shell replacement (with a confirm step) and notifications.
+- **Command palette** (`Ctrl+K` or `/`): fuzzy search across subsystems, locations, tools, apps and alerts.
 - **CLI and daemon**: the same executable controls a running shell over a named pipe.
 
 ## 🏗️ Architecture
@@ -47,7 +52,7 @@ frontend/src/app
 │   ├── system.store.ts, files.store.ts, apps.store.ts, log.store.ts, settings.store.ts
 │   └── format.ts      pure formatting and path helpers
 ├── layout/            data cascade, toasts, command palette
-├── shared/            icon, gauge, trend chart
+├── shared/            icon, totem meter, trend chart
 └── features/          lazily loaded routes: files, apps, sensors, tools, config, activity
 ```
 
@@ -79,7 +84,7 @@ cd ../src-tauri
 cargo test          # Rust unit tests
 ```
 
-Icons are generated from `@material-symbols/svg-400`; add a name to `scripts/icons.mjs` and run `npm run icons`.
+Icons are generated from `@material-symbols/svg-400`; add a name to `scripts/icons.mjs` and run `npm run icons`. The app icon set is generated from `docs/brand/app-icon.png` with `npx tauri icon ../docs/brand/app-icon.png -o ../src-tauri/icons`.
 
 ## ⌨️ CLI
 

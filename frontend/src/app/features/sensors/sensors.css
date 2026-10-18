@@ -13,14 +13,20 @@
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
   gap: 28px;
-  align-items: center;
+  align-items: start;
 }
 
-.gauges {
+.totems-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.totems {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  max-width: 760px;
+  gap: 28px;
+  height: 330px;
 }
 
 .specs {
@@ -84,21 +90,13 @@
 
 .cells span {
   flex: 1;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--c) 13%, #000);
+  background: #21180f;
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 6px 100%, 0 50%);
   transition: background-color 0.35s ease;
 }
 
 .cells span.on {
   background: var(--c);
-}
-
-.cells span:last-child {
-  border-radius: 999px 999px 2px 2px;
-}
-
-.cells span:first-child {
-  border-radius: 2px 2px 999px 999px;
 }
 
 .r-val {

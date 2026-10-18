@@ -2,11 +2,13 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '
 
 const COLS = 14;
 const ROWS = 6;
-const COLORS = ['var(--frame-d)', 'var(--frame-b)', 'var(--lc-text)', 'var(--frame-a)', 'var(--lc-sky)'];
+const COLORS = ['var(--lc-muted)', 'var(--frame-d)', 'var(--lc-text)', 'var(--frame-b)', 'var(--frame-a)', 'var(--lc-peri)'];
+
+const MARKS = ['·:·', '||·|', '•••', '⁘', '×·×', '|·|', ':::', '·||', '⋮⋮', '•|•', '||||', '·•·'];
 
 function cell(): string {
-  const len = 2 + Math.floor(Math.random() * 5);
-  return String(Math.floor(Math.random() * 10 ** len)).padStart(len, '0');
+  const mark = MARKS[Math.floor(Math.random() * MARKS.length)];
+  return `${mark} ${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
 }
 
 @Component({
@@ -26,10 +28,10 @@ function cell(): string {
       justify-content: flex-end;
       gap: 14px;
       overflow: hidden;
+      font-family: var(--mono);
       font-size: 13px;
       line-height: 1.3;
-      letter-spacing: 0.06em;
-      font-variant-numeric: tabular-nums;
+      white-space: pre;
       opacity: 0.85;
       mask-image: linear-gradient(90deg, transparent, #000 30%);
       pointer-events: none;

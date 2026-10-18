@@ -10,11 +10,11 @@ type Filter = LogCategory | 'ALL';
 
 const CATEGORY: Record<Filter, { color: string; icon: IconName }> = {
   ALL: { color: 'c-peach', icon: 'list' },
-  APPLICATIONS: { color: 'c-sky', icon: 'apps' },
+  APPLICATIONS: { color: 'c-teal', icon: 'apps' },
   FILESYSTEM: { color: 'c-gold', icon: 'folder' },
-  SYSTEM: { color: 'c-teal', icon: 'developer_board' },
-  ALERTS: { color: 'c-red', icon: 'warning' },
-  CONFIG: { color: 'c-lavender', icon: 'tune' },
+  SYSTEM: { color: 'c-peri', icon: 'developer_board' },
+  ALERTS: { color: 'c-red', icon: 'thunderstorm' },
+  CONFIG: { color: 'c-lavender', icon: 'settings' },
 };
 
 const LEVEL_ICON: Record<LogLevel, IconName> = {

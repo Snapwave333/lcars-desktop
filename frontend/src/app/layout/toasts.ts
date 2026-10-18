@@ -31,24 +31,24 @@ import { Icon } from '../shared/icon';
       width: min(420px, calc(100vw - 40px));
     }
     .toast {
-      --t: var(--lc-sky);
+      --t: var(--lc-teal);
       display: flex;
       align-items: stretch;
       gap: 12px;
-      background: #0d0c14;
-      border-radius: 999px 18px 18px 999px;
+      background: var(--lc-panel);
+      border-radius: 999px 4px 4px 999px;
       box-shadow: inset 0 0 0 2px var(--t), 0 10px 30px rgba(0, 0, 0, 0.7);
       overflow: hidden;
       animation: lcars-rise 0.22s ease both;
     }
-    .toast[data-tone='alert'] { --t: var(--lc-gold); }
+    .toast[data-tone='alert'] { --t: var(--lc-orange); }
     .toast[data-tone='success'] { --t: var(--lc-green); }
     .cap {
       display: grid;
       place-items: center;
       width: 52px;
       background: var(--t);
-      color: #000;
+      color: var(--lc-ink);
       --icon-size: 24px;
     }
     .text {
@@ -62,7 +62,9 @@ import { Icon } from '../shared/icon';
     }
     b {
       color: var(--t);
-      font-size: 15px;
+      font-family: var(--display);
+      font-weight: 400;
+      font-size: 16px;
       letter-spacing: 0.14em;
     }
     .text span {

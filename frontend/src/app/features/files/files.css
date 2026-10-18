@@ -40,7 +40,7 @@
   padding: 0 14px;
   border: 0;
   background: var(--lc-peri);
-  color: #000;
+  color: var(--lc-ink);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -53,7 +53,7 @@
 }
 
 .crumb:hover { filter: brightness(1.2); }
-.crumb.first { border-radius: 999px 0 0 999px; padding-left: 16px; background: var(--lc-sky); flex: none; }
+.crumb.first { border-radius: 999px 0 0 999px; padding-left: 16px; background: var(--lc-teal); flex: none; }
 .crumb.last { border-radius: 0 999px 999px 0; background: var(--lc-gold); flex: 0 1 auto; }
 .crumb.first.last { border-radius: 999px; }
 .crumb:not(.first):not(.last) { flex: 0 3 auto; }
@@ -93,7 +93,7 @@
 .thead {
   height: 30px;
   padding-right: 14px;
-  border-bottom: 2px solid var(--frame-c);
+  border-bottom: 3px dotted var(--frame-b);
 }
 
 .th {
@@ -103,7 +103,7 @@
   border: 0;
   padding: 0;
   background: none;
-  color: var(--frame-d);
+  color: var(--lc-gold);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -150,10 +150,12 @@
 .kind {
   display: grid;
   place-items: center;
+  width: 32px;
   height: 32px;
-  border-radius: 999px;
+  margin-left: 4px;
+  border-radius: 50%;
   background: var(--c);
-  color: #000;
+  color: var(--lc-ink);
   --icon-size: 18px;
 }
 
@@ -197,20 +199,20 @@
   gap: 4px;
   padding: 12px 14px;
   border-radius: 28px 6px 6px 6px;
-  background: color-mix(in srgb, var(--c) 8%, #050508);
+  background: color-mix(in srgb, var(--c) 8%, var(--lc-bg));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent);
   cursor: pointer;
   transition: background-color 0.12s ease, transform 0.12s ease;
 }
 
 .tile:hover {
-  background: color-mix(in srgb, var(--c) 16%, #050508);
+  background: color-mix(in srgb, var(--c) 16%, var(--lc-bg));
   transform: translateY(-2px);
 }
 
 .tile.sel {
   box-shadow: inset 0 0 0 2px var(--c);
-  background: color-mix(in srgb, var(--c) 22%, #050508);
+  background: color-mix(in srgb, var(--c) 22%, var(--lc-bg));
 }
 
 .t-icon {
@@ -221,7 +223,7 @@
   margin-bottom: auto;
   border-radius: 50%;
   background: var(--c);
-  color: #000;
+  color: var(--lc-ink);
   --icon-size: 28px;
 }
 
@@ -269,7 +271,7 @@
   flex-wrap: wrap;
   gap: 6px 18px;
   padding: 8px 4px 0;
-  border-top: 2px solid var(--frame-c);
+  border-top: 3px dotted var(--frame-b);
   color: var(--lc-muted);
   font-size: 12px;
   letter-spacing: 0.14em;
@@ -290,7 +292,7 @@
   width: 320px;
   flex: none;
   padding: 0 0 0 18px;
-  border-left: 6px solid var(--c);
+  border-left: 6px dashed var(--c);
   border-radius: 0 0 0 24px;
   animation: lcars-in 0.2s ease both;
 }
@@ -304,11 +306,11 @@
 .d-icon {
   display: grid;
   place-items: center;
-  width: 84px;
-  height: 84px;
-  border-radius: 42px 12px 12px 42px;
+  width: 92px;
+  height: 92px;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   background: var(--c);
-  color: #000;
+  color: var(--lc-ink);
   --icon-size: 46px;
 }
 
@@ -325,8 +327,9 @@
 h2 {
   margin: 0;
   color: var(--c);
+  font-family: var(--display);
   font-size: 26px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.1;
   overflow-wrap: anywhere;
 }

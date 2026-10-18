@@ -154,7 +154,7 @@ export class SystemStore {
     try {
       await this.backend.setAutoStart(enable);
       this.log.add('CONFIG', `Auto-start ${enable ? 'enabled' : 'disabled'}`, 'success');
-      this.pushToast({ title: 'CONFIGURATION UPDATED', body: `Auto-start ${enable ? 'engaged' : 'disengaged'}` }, 'success', 3000);
+      this.pushToast({ title: 'SETTINGS UPDATED', body: `Auto-start ${enable ? 'enabled' : 'disabled'}` }, 'success', 3000);
     } catch (err) {
       this.log.add('CONFIG', 'Auto-start change failed', 'alert', errorText(err));
     }
@@ -165,7 +165,7 @@ export class SystemStore {
     try {
       await this.backend.setShell(target);
       this.log.add('CONFIG', `Login shell set to ${target.toUpperCase()} (takes effect next sign-in)`, 'warn');
-      this.pushToast({ title: 'SHELL REASSIGNED', body: `Next sign-in will load ${target.toUpperCase()}` }, 'success', 4000);
+      this.pushToast({ title: 'LOGIN SHELL CHANGED', body: `Next sign-in will load ${target.toUpperCase()}` }, 'success', 4000);
     } catch (err) {
       this.log.add('CONFIG', `Shell change to ${target} failed`, 'alert', errorText(err));
     }

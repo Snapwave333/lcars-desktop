@@ -1,17 +1,18 @@
 <div class="frame">
   <header class="head">
     <div class="head-left">
-      <button type="button" class="blk blk-a c-frame-a" routerLink="/files" aria-label="Home">
+      <button type="button" class="blk blk-a rv c-frame-a" routerLink="/files" aria-label="Home">
         <span class="blk-code">LCARS</span>
-        <span class="blk-num num">{{ system.telemetry().app_version || '0.0' }}-47</span>
+        <span class="blk-num">{{ system.telemetry().app_version || '0.0' }}-47</span>
       </button>
-      <div class="elbow elbow-down"></div>
+      <div class="elbow elbow-down weave"></div>
     </div>
 
     <div class="head-right">
       <div class="head-main" data-tauri-drag-region>
         <app-data-cascade class="cascade" />
         <div class="titles" data-tauri-drag-region>
+          <span class="subtitle">{{ current().subtitle }}</span>
           <h1 class="title">{{ current().title }}</h1>
           <div class="readouts num">
             <span><b>HOST</b> {{ system.telemetry().hostname }}</span>
@@ -21,7 +22,7 @@
         </div>
       </div>
       <div class="bar">
-        <span class="seg seg-fill c-frame-a"></span>
+        <span class="seg seg-fill weave c-frame-a"></span>
         <button
           type="button"
           class="seg seg-alert"
@@ -29,7 +30,7 @@
           (click)="system.cycleAlert()"
           title="Cycle alert condition"
         >
-          <app-icon [name]="system.alert() === 'none' ? 'shield' : 'warning'" /> {{ alertLabel() }}
+          <app-icon [name]="alertIcon()" /> {{ alertLabel() }}
         </button>
         <button type="button" class="seg seg-btn c-frame-b" (click)="system.windowAction('minimize')" title="Minimize" aria-label="Minimize"><app-icon name="minimize" /></button>
         <button type="button" class="seg seg-btn c-frame-b" (click)="system.windowAction('maximize')" title="Maximize / restore" aria-label="Maximize"><app-icon name="crop_square" /></button>
@@ -41,17 +42,17 @@
 
   <div class="body">
     <nav class="rail" aria-label="Subsystems">
-      <div class="elbow elbow-up"></div>
+      <div class="elbow elbow-up weave"></div>
       @for (item of nav; track item.path; let i = $index) {
         <a
-          class="blk nav-blk"
+          class="blk nav-blk rv"
           [class]="item.color"
           [routerLink]="'/' + item.path"
           routerLinkActive="active"
           [style.animation-delay.ms]="80 + i * 45"
           [title]="item.title + ' (' + item.key + ')'"
         >
-          <span class="blk-code num">{{ item.code }}-{{ item.key }}{{ i * 7 + 13 }}</span>
+          <span class="blk-code">{{ tally[i] }} {{ item.code }}</span>
           <span class="blk-label"><app-icon [name]="item.icon" />{{ item.label }}</span>
           @if (item.path === 'log' && log.unseenAlerts()) {
             <span class="badge num">{{ log.unseenAlerts() }}</span>
@@ -63,13 +64,13 @@
           <div class="locs-head">LOCATIONS</div>
           @for (loc of system.quickLocations(); track loc.id) {
             <button type="button" class="loc-blk" (click)="openLocation(loc.path)" [title]="loc.path">
-              {{ loc.name }}<app-icon name="chevron_right" />
+              <app-icon [name]="locIcon(loc.id)" />{{ loc.name }}
             </button>
           }
         </div>
       }
-      <div class="blk blk-fill c-frame-c">
-        <span class="blk-code num">{{ system.telemetry().cpu_cores }}C / {{ system.telemetry().memory_load_percent }}M</span>
+      <div class="blk blk-fill weave c-frame-c">
+        <span class="blk-code mono">{{ system.telemetry().cpu_cores }}C / {{ system.telemetry().memory_load_percent }}M</span>
       </div>
       <div class="blk blk-foot c-frame-b" [class.offline]="!system.online()">
         <span class="blk-code">{{ system.live ? (system.online() ? 'LINK' : 'NO LINK') : 'DEMO' }}</span>
@@ -79,8 +80,8 @@
     <div class="stage">
       <div class="bar bar-top">
         <span class="seg seg-short c-frame-b"></span>
-        <span class="seg seg-code c-frame-d num">{{ current().code }}-{{ current().key }}{{ current().path.length * 37 }}</span>
-        <span class="seg seg-fill c-frame-c"></span>
+        <span class="seg seg-code c-frame-d mono"><app-icon [name]="current().icon" /> {{ current().code }}-{{ current().path.length * 371 }}</span>
+        <span class="seg seg-fill weave c-frame-c"></span>
         <button type="button" class="seg seg-btn seg-search c-frame-a" (click)="togglePalette()" title="Command palette (Ctrl+K or /)">
           <app-icon name="search" /> COMMAND <kbd>CTRL K</kbd>
         </button>

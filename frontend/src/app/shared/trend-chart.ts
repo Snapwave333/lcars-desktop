@@ -44,8 +44,9 @@ const H = 200;
       padding-left: 34px;
     }
     .grid {
-      stroke: var(--lc-line);
-      stroke-width: 1;
+      stroke: var(--lc-plate);
+      stroke-width: 1.5;
+      stroke-dasharray: 2 6;
       vector-effect: non-scaling-stroke;
     }
     .line {

@@ -1,8 +1,20 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { BACKEND } from './backend';
 import { LogStore } from './log.store';
+import type { IconName } from '../shared/icon-data';
 import type { InstalledApp, ToolPreset } from './models';
 import { errorText } from './system.store';
+
+export const CATEGORY_ICON: Record<string, IconName> = {
+  ALL: 'apps',
+  DEVELOPMENT: 'code',
+  GAMES: 'sports_esports',
+  'INTERNET & COMMS': 'chat',
+  'MEDIA & GRAPHICS': 'movie',
+  OFFICE: 'work',
+  'SYSTEM & ADMIN': 'settings',
+  'UTILITY & TOOLS': 'handyman',
+};
 
 export const TOOLS: ToolPreset[] = [
   { id: 'wt', name: 'WINDOWS TERMINAL', group: 'TERMINAL', code: 'CMD-01', path: 'wt.exe', color: 'c-orange', description: 'Modern tabbed terminal' },
@@ -82,12 +94,12 @@ export class AppsStore {
   async run(path: string, args: string[] = [], label = path): Promise<{ ok: boolean; message: string }> {
     try {
       const res = await this.backend.launch(path, args);
-      const message = res.pid ? `${label} engaged — PID ${res.pid}` : `${label} engaged`;
+      const message = res.pid ? `${label} started — PID ${res.pid}` : `${label} started`;
       this.log.add('APPLICATIONS', message, 'success', args.length ? args.join(' ') : undefined);
       return { ok: true, message };
     } catch (err) {
       const message = errorText(err);
-      this.log.add('APPLICATIONS', `Cannot execute ${label}`, 'alert', message);
+      this.log.add('APPLICATIONS', `Cannot run ${label}`, 'alert', message);
       return { ok: false, message };
     }
   }

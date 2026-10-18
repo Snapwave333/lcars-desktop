@@ -13,6 +13,7 @@ const ICONS = [
   'storage', 'swap_horiz', 'task_alt', 'terminal', 'timer', 'tune', 'visibility', 'visibility_off',
   'warning', 'web', 'work', 'deployed_code', 'sensors', 'fullscreen', 'minimize',
   'crop_square', 'campaign', 'restart_alt', 'filter_list', 'sort', 'radar', 'thermostat', 'troubleshoot',
+  'construction', 'code_blocks', 'ecg_heart', 'thunderstorm', 'water_drop', 'handyman', 'inventory_2', 'hub',
 ];
 
 const require = createRequire(import.meta.url);

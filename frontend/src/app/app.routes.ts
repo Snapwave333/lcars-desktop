@@ -9,15 +9,16 @@ export interface NavItem {
   color: string;
   key: string;
   icon: IconName;
+  subtitle: string;
 }
 
 export const NAV: NavItem[] = [
-  { path: 'files', icon: 'folder_open', title: 'FILE SYSTEMS', label: 'FILES', code: '01', color: 'c-frame-a', key: '1' },
-  { path: 'apps', icon: 'apps', title: 'APPLICATIONS', label: 'APPS', code: '02', color: 'c-frame-d', key: '2' },
-  { path: 'sensors', icon: 'radar', title: 'SENSOR ARRAY', label: 'SENSORS', code: '03', color: 'c-frame-b', key: '3' },
-  { path: 'tools', icon: 'build', title: 'ENGINEERING', label: 'TOOLS', code: '04', color: 'c-frame-c', key: '4' },
-  { path: 'config', icon: 'tune', title: 'CONFIGURATION', label: 'CONFIG', code: '05', color: 'c-frame-d', key: '5' },
-  { path: 'log', icon: 'history', title: 'ACTIVITY LOG', label: 'LOG', code: '06', color: 'c-frame-b', key: '6' },
+  { path: 'files', icon: 'folder_open', subtitle: 'LOCAL STORAGE', title: 'FILE SYSTEMS', label: 'FILES', code: '01', color: 'c-frame-a', key: '1' },
+  { path: 'apps', icon: 'apps', subtitle: 'INSTALLED SOFTWARE', title: 'APPLICATIONS', label: 'APPS', code: '02', color: 'c-frame-e', key: '2' },
+  { path: 'sensors', icon: 'monitor_heart', subtitle: 'LIVE SYSTEM TELEMETRY', title: 'SENSOR ARRAY', label: 'SENSORS', code: '03', color: 'c-frame-b', key: '3' },
+  { path: 'tools', icon: 'construction', subtitle: 'WINDOWS UTILITIES', title: 'SYSTEM TOOLS', label: 'TOOLS', code: '04', color: 'c-frame-a', key: '4' },
+  { path: 'config', icon: 'settings', subtitle: 'SHELL SETTINGS', title: 'CONFIGURATION', label: 'CONFIG', code: '05', color: 'c-frame-f', key: '5' },
+  { path: 'log', icon: 'history', subtitle: 'SESSION EVENTS', title: 'ACTIVITY LOG', label: 'LOG', code: '06', color: 'c-frame-e', key: '6' },
 ];
 
 export const routes: Routes = [

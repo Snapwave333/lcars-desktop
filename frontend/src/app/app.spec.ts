@@ -2,7 +2,6 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 
 import { App } from './app';
-import { SettingsStore } from './core/settings.store';
 import { SystemStore } from './core/system.store';
 import { settle, setupTestBed } from './testing';
 
@@ -30,14 +29,12 @@ describe('App shell', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toContain('SENSOR ARRAY');
   });
 
-  it('reflects theme and alert on the host element', async () => {
+  it('reflects the alert condition on the host element', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
-    TestBed.inject(SettingsStore).theme.set('nemesis');
     await TestBed.inject(SystemStore).setAlert('red');
     await fixture.whenStable();
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.getAttribute('data-theme')).toBe('nemesis');
     expect(host.getAttribute('data-alert')).toBe('red');
     expect(host.querySelector('.alert-banner')?.textContent).toContain('RED ALERT');
   });

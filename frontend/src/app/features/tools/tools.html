@@ -2,11 +2,11 @@
   <div class="cols">
     <div class="presets scroll">
       @for (g of groups; track g.name) {
-        <div class="rule c-peri"><span>{{ g.name }}</span><i></i><b class="num">{{ g.tools.length }}</b></div>
+        <div class="rule c-gold"><span><app-icon [name]="groupIcon[g.name]" /> {{ g.name }}</span><i></i><b class="num">{{ g.tools.length }}</b></div>
         <div class="grid">
           @for (t of g.tools; track t.id) {
             <button type="button" class="tool" [class]="t.color" (click)="launch(t)" [title]="t.path">
-              <span class="t-icon"><app-icon [name]="icon(t)" /></span>
+              <span class="t-icon ring"><app-icon [name]="icon(t)" /></span>
               <span class="t-body">
                 <span class="t-name">{{ t.name }}</span>
                 <span class="t-desc">{{ t.description }}</span>
@@ -19,7 +19,7 @@
     </div>
 
     <aside class="console">
-      <div class="rule c-orange"><span>DIRECT EXECUTION</span><i></i><b>CMD</b></div>
+      <div class="rule c-orange"><span><app-icon name="terminal" /> RUN COMMAND</span><i></i><b>CMD</b></div>
       <form class="runner" (submit)="$event.preventDefault(); execute()">
         <label class="field c-orange">
           <app-icon name="terminal" />
@@ -44,11 +44,11 @@
           />
         </label>
         <button type="submit" class="pill c-orange exec" [disabled]="!path().trim() || running()">
-          <app-icon name="bolt" /> {{ running() ? 'ENGAGING…' : 'EXECUTE' }}
+          <app-icon name="play_arrow" /> {{ running() ? 'RUNNING…' : 'RUN' }}
         </button>
       </form>
 
-      <div class="rule c-gold"><span>EXECUTION RECORD</span><i></i><b class="num">{{ history().length }}</b></div>
+      <div class="rule c-teal"><span><app-icon name="history" /> HISTORY</span><i></i><b class="num">{{ history().length }}</b></div>
       <ol class="history scroll">
         @for (r of history(); track r.id) {
           <li [class.err]="!r.ok">
@@ -63,7 +63,7 @@
             </button>
           </li>
         } @empty {
-          <li class="none">NO COMMANDS EXECUTED THIS SESSION</li>
+          <li class="none">NO COMMANDS RUN THIS SESSION</li>
         }
       </ol>
     </aside>

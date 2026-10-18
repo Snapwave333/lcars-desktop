@@ -1,29 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 
-import { AppsStore } from '../../core/apps.store';
+import { AppsStore, CATEGORY_ICON } from '../../core/apps.store';
 import { Icon } from '../../shared/icon';
 import type { IconName } from '../../shared/icon-data';
-
-export const CATEGORY_ICON: Record<string, IconName> = {
-  ALL: 'apps',
-  DEVELOPMENT: 'code',
-  GAMES: 'sports_esports',
-  'INTERNET & COMMS': 'chat',
-  'MEDIA & GRAPHICS': 'movie',
-  OFFICE: 'work',
-  'SYSTEM & ADMIN': 'settings',
-  'UTILITY & TOOLS': 'build',
-};
 
 const CATEGORY_COLOR: Record<string, string> = {
   ALL: 'c-peach',
   DEVELOPMENT: 'c-lavender',
   GAMES: 'c-orange',
-  'INTERNET & COMMS': 'c-sky',
+  'INTERNET & COMMS': 'c-teal',
   'MEDIA & GRAPHICS': 'c-pink',
   OFFICE: 'c-peach',
   'SYSTEM & ADMIN': 'c-gold',
-  'UTILITY & TOOLS': 'c-teal',
+  'UTILITY & TOOLS': 'c-peri',
 };
 
 @Component({

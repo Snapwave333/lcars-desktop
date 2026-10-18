@@ -1,26 +1,22 @@
-import { UpperCasePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 
 import { NAV } from '../../app.routes';
 import type { AlertMode } from '../../core/models';
-import { SettingsStore, THEMES } from '../../core/settings.store';
 import { SystemStore } from '../../core/system.store';
 import { Icon } from '../../shared/icon';
 
 @Component({
   selector: 'app-config',
-  imports: [Icon, UpperCasePipe],
+  imports: [Icon],
   templateUrl: './config.html',
   styleUrl: './config.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConfigPage {
-  protected readonly settings = inject(SettingsStore);
   protected readonly system = inject(SystemStore);
 
-  protected readonly themes = THEMES;
   protected readonly alerts: { mode: AlertMode; label: string; color: string }[] = [
-    { mode: 'none', label: 'GREEN', color: 'c-green' },
+    { mode: 'none', label: 'GREEN', color: 'c-teal' },
     { mode: 'yellow', label: 'YELLOW', color: 'c-gold' },
     { mode: 'red', label: 'RED', color: 'c-red' },
     { mode: 'blue', label: 'BLUE', color: 'c-blue' },

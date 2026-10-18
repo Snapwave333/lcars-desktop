@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 
 import { formatMegabytes, formatUptime } from '../../core/format';
 import { SystemStore } from '../../core/system.store';
-import { Gauge } from '../../shared/gauge';
+import { Totem } from '../../shared/totem';
 import { Icon } from '../../shared/icon';
 import { TrendChart, type Series } from '../../shared/trend-chart';
 
@@ -11,7 +11,7 @@ const CELLS = 24;
 
 @Component({
   selector: 'app-sensors',
-  imports: [Gauge, TrendChart, Icon, DecimalPipe],
+  imports: [Totem, TrendChart, Icon, DecimalPipe],
   templateUrl: './sensors.html',
   styleUrl: './sensors.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -24,7 +24,7 @@ export class SensorsPage {
 
   protected readonly series = computed<Series[]>(() => [
     { label: 'CPU', color: 'var(--lc-orange)', values: this.system.cpuHistory() },
-    { label: 'MEMORY', color: 'var(--lc-sky)', values: this.system.memHistory() },
+    { label: 'MEMORY', color: 'var(--lc-teal)', values: this.system.memHistory() },
   ]);
 
   protected readonly racks = computed(() => {
@@ -34,8 +34,8 @@ export class SensorsPage {
     return [
       { label: 'CPU', value: t.cpu_load_percent, color: 'c-orange' },
       { label: 'PEAK', value: peak, color: 'c-gold' },
-      { label: 'RAM', value: t.memory_load_percent, color: 'c-sky' },
-      { label: 'FREE', value: freeMem, color: 'c-teal' },
+      { label: 'RAM', value: t.memory_load_percent, color: 'c-teal' },
+      { label: 'FREE', value: freeMem, color: 'c-peri' },
       { label: 'DISK', value: this.system.diskUsedPercent(), color: 'c-lavender' },
     ].map((r) => ({ ...r, lit: Math.round((Math.max(0, Math.min(100, r.value)) / 100) * CELLS) }));
   });

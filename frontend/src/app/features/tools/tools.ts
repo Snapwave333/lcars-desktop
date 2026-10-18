@@ -8,7 +8,7 @@ import type { IconName } from '../../shared/icon-data';
 
 const TOOL_ICON: Record<string, IconName> = {
   wt: 'terminal',
-  ps: 'terminal',
+  ps: 'code_blocks',
   cmd: 'terminal',
   task: 'monitor_heart',
   resmon: 'speed',
@@ -17,7 +17,7 @@ const TOOL_ICON: Record<string, IconName> = {
   dev: 'devices',
   disk: 'storage',
   event: 'event_note',
-  serv: 'dashboard_customize',
+  serv: 'hub',
   reg: 'developer_board',
   exp: 'folder_open',
   calc: 'calculate',
@@ -49,6 +49,7 @@ export class ToolsPage {
     tools: TOOLS.filter((t) => t.group === g),
   }));
   protected readonly icon = (t: ToolPreset): IconName => TOOL_ICON[t.id] ?? 'build';
+  protected readonly groupIcon: Record<string, IconName> = { TERMINAL: 'terminal', MANAGEMENT: 'settings', UTILITY: 'handyman' };
 
   protected readonly path = signal('powershell.exe');
   protected readonly args = signal('');

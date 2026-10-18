@@ -27,7 +27,7 @@
   height: 42px;
   padding: 0 14px;
   border: 0;
-  background: color-mix(in srgb, var(--c) 16%, #000);
+  background: var(--lc-plate);
   color: var(--c);
   font-size: 14px;
   font-weight: 600;
@@ -40,11 +40,11 @@
 
 .cat.first { border-radius: 22px 0 0 0; }
 .cat.last { border-radius: 0 0 0 22px; }
-.cat:hover { background: color-mix(in srgb, var(--c) 32%, #000); }
+.cat:hover { background: color-mix(in srgb, var(--c) 30%, var(--lc-plate)); }
 
 .cat.on {
   background: var(--c);
-  color: #000;
+  color: var(--lc-ink);
 }
 
 .cat-name {
@@ -90,7 +90,7 @@
   padding: 0 8px 0 0;
   border: 0;
   border-radius: 999px 10px 10px 999px;
-  background: color-mix(in srgb, var(--c) 8%, #050508);
+  background: color-mix(in srgb, var(--c) 8%, var(--lc-bg));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 25%, transparent);
   color: var(--lc-text);
   text-align: left;
@@ -101,20 +101,21 @@
 
 .tile:hover,
 .tile:focus-visible {
-  background: color-mix(in srgb, var(--c) 18%, #050508);
+  background: color-mix(in srgb, var(--c) 18%, var(--lc-bg));
   box-shadow: inset 0 0 0 2px var(--c);
 }
 
 .t-icon {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
+  margin-left: 4px;
   flex: none;
   border-radius: 50%;
   background: var(--c);
-  color: #000;
-  --icon-size: 28px;
+  color: var(--lc-ink);
+  --icon-size: 26px;
 }
 
 .t-body {
